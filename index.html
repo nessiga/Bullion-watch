@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bullion Watch</title>
+<meta name="description" content="Live gold price in GBP and USD with trend signals and profit targets for your own holdings.">
+<meta name="theme-color" content="#EEF0EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1311" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Bullion Watch">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a single-column phone app. Sticky price header, then signal, chart, indicators, my gold, market snapshot, method notes. */
+:root{
+  --bg:#EEF0EC; --surface:#FFFFFF; --surface-2:#F6F7F4; --line:#D9DDD6;
+  --fg:#18201B; --muted:#5F6862; --faint:#8B938D;
+  --gold:#9C7215; --gold-soft:#E9D9AE; --gold-line:#B8891F; --on-gold:#FFFFFF;
+  --good:#1D7448; --good-soft:#D6EEDF; --bad:#B13A2C; --bad-soft:#F6DCD7; --warn:#9A6A12; --warn-soft:#F3E6C6;
+  --ma50:#2F6FB0; --ma200:#8A4FA8;
+  --f-display:"Big Shoulders Display","Arial Narrow","Roboto Condensed",sans-serif;
+  --f-body:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:14px; color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1311; --surface:#171C19; --surface-2:#1D2420; --line:#2A332E;
+  --fg:#E6EAE7; --muted:#9BA59F; --faint:#6E7872;
+  --gold:#E0B04A; --gold-soft:#3A2F17; --gold-line:#C9982F; --on-gold:#1A1405;
+  --good:#5CC48A; --good-soft:#173525; --bad:#F07E6E; --bad-soft:#3D1D19; --warn:#E5B456; --warn-soft:#3A2E14;
+  --ma50:#6FA8E6; --ma200:#C08BDD; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0F1311; --surface:#171C19; --surface-2:#1D2420; --line:#2A332E;
+  --fg:#E6EAE7; --muted:#9BA59F; --faint:#6E7872;
+  --gold:#E0B04A; --gold-soft:#3A2F17; --gold-line:#C9982F; --on-gold:#1A1405;
+  --good:#5CC48A; --good-soft:#173525; --bad:#F07E6E; --bad-soft:#3D1D19; --warn:#E5B456; --warn-soft:#3A2E14;
+  --ma50:#6FA8E6; --ma200:#C08BDD; color-scheme:dark;}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+.wrap{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:0 40px;display:flex;flex-direction:column;gap:14px}
+.num{font-variant-numeric:tabular-nums}
+h2{font-family:var(--f-display);font-weight:700;font-size:22px;letter-spacing:.01em;margin:0;text-wrap:balance}
+.label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.spread{justify-content:space-between}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible,textarea:focus-visible{outline:2px solid var(--gold-line);outline-offset:2px}
+
+.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-block:12px 10px;border-bottom:1px solid var(--line);margin-inline:-16px;padding-inline:16px}
+.brand{display:flex;align-items:center;gap:8px}
+.mark{width:26px;height:18px;border-radius:3px;background:linear-gradient(135deg,var(--gold-line),var(--gold-soft) 55%,var(--gold-line));border:1px solid var(--gold);position:relative}
+.mark::after{content:"999.9";position:absolute;inset:0;font:600 7px/18px var(--f-mono);text-align:center;color:#3B2A06}
+.brand b{font-family:var(--f-display);font-size:19px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:2px}
+.seg button{border:0;background:transparent;padding:5px 11px;border-radius:999px;font-size:13px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.price{font-family:var(--f-display);font-weight:800;font-size:54px;line-height:1;letter-spacing:.005em}
+.price small{font-size:20px;font-weight:600;color:var(--muted);margin-left:4px}
+.chg{font-weight:600;font-size:14px}
+.up{color:var(--good)} .down{color:var(--bad)}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);background:transparent;border:0;padding:0;text-align:right}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}
+.dot.live{background:var(--good);box-shadow:0 0 0 3px var(--good-soft)}
+.dot.delayed{background:var(--warn)} .dot.offline{background:var(--bad)}
+@media (prefers-reduced-motion:no-preference){.dot.live{animation:pulse 2.4s ease-in-out infinite}@keyframes pulse{50%{box-shadow:0 0 0 6px transparent}}}
+.subprices{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.subprices b{color:var(--fg);font-weight:600}
+.banner{display:flex;gap:10px;align-items:flex-start;background:var(--gold-soft);border-radius:12px;padding:10px 12px;font-size:13px}
+.banner p{margin:0;flex:1;min-width:0}
+.banner.err{background:var(--bad-soft)}
+.x{border:0;background:transparent;font-size:18px;line-height:1;padding:2px 4px;color:var(--muted)}
+
+.signal .verdict{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-weight:700;font-size:15px}
+.t-sbuy,.t-buy{background:var(--good-soft);color:var(--good)}
+.t-hold{background:var(--warn-soft);color:var(--warn)}
+.t-sell,.t-ssell{background:var(--bad-soft);color:var(--bad)}
+.gauge{position:relative;height:10px;border-radius:999px;background:linear-gradient(90deg,var(--bad) 0%,var(--warn) 50%,var(--good) 100%);opacity:.85}
+.gauge i{position:absolute;top:-4px;width:4px;height:18px;border-radius:2px;background:var(--fg);transform:translateX(-50%);box-shadow:0 0 0 2px var(--surface)}
+.gauge-l{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+.reasons{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.reasons li{display:grid;grid-template-columns:34px 1fr;gap:8px;align-items:start;font-size:14px}
+.reasons .sc{font:600 12px/20px var(--f-mono);text-align:center;border-radius:6px}
+.sc.p{background:var(--good-soft);color:var(--good)} .sc.n{background:var(--bad-soft);color:var(--bad)} .sc.z{background:var(--surface-2);color:var(--muted)}
+.note{font-size:12px;color:var(--muted)}
+
+.ranges{display:flex;gap:4px;flex-wrap:wrap}
+.ranges button{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:5px 10px;font-size:13px;font-weight:600;color:var(--muted)}
+.ranges button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.chartbox{position:relative;touch-action:pan-y;user-select:none;-webkit-user-select:none;min-height:230px}
+.chartbox svg{display:block;width:100%;height:auto;overflow:visible}
+.tip{position:absolute;top:0;pointer-events:none;background:var(--fg);color:var(--bg);font-size:12px;padding:4px 8px;border-radius:6px;white-space:nowrap;transform:translateX(-50%)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.sw{width:14px;height:3px;border-radius:2px;display:inline-block}
+
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.stat{background:var(--surface-2);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat .v{font-family:var(--f-display);font-weight:700;font-size:24px;line-height:1.1}
+.stat .s{font-size:12px;color:var(--muted)}
+.rangebar{position:relative;height:6px;border-radius:3px;background:var(--line);margin-top:6px}
+.rangebar i{position:absolute;top:-3px;width:12px;height:12px;border-radius:50%;background:var(--gold-line);transform:translateX(-50%);border:2px solid var(--surface)}
+.returns{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;text-align:center}
+.returns div{background:var(--surface-2);border-radius:8px;padding:8px 4px}
+.returns b{display:block;font-size:14px}
+.returns span{font-size:11px;color:var(--muted)}
+
+.hold{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--surface-2)}
+.hold.example{border-style:dashed}
+.badge{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:5px;background:var(--gold-soft);color:var(--gold)}
+.hold h3{margin:0;font-size:15px;font-weight:700}
+.kv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.kv div{display:flex;flex-direction:column;min-width:0}
+.kv span{font-size:11px;color:var(--muted)}
+.kv b{font-size:15px}
+.targets{display:flex;flex-direction:column;gap:6px}
+.tg{display:grid;grid-template-columns:52px 1fr auto;gap:8px;align-items:center;font-size:13px}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--gold-line)}
+.bar i.hit{background:var(--good)}
+.advice{font-size:14px;padding:8px 10px;border-radius:8px;background:var(--surface);border:1px solid var(--line)}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:8px 12px;font-weight:600;font-size:14px;color:var(--fg)}
+.btn.primary{background:var(--gold);border-color:var(--gold);color:var(--on-gold)}
+.btn.danger{color:var(--bad)}
+.btn.sm{padding:5px 9px;font-size:13px}
+form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+form .full{grid-column:1/-1}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted);min-width:0}
+input,select,textarea{font:inherit;font-size:16px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+textarea{font-family:var(--f-mono);font-size:12px;min-height:90px}
+details summary{cursor:pointer;font-weight:600;list-style:none}
+details summary::-webkit-details-marker{display:none}
+.snap{display:flex;flex-direction:column}
+.snap div{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.snap div:last-child{border-bottom:0}
+.snap span{color:var(--muted)}
+.snap b{text-align:right}
+.method p{margin:0;font-size:14px;color:var(--muted)}
+.method ul{margin:0;padding-left:18px;font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.disclaimer{font-size:12px;color:var(--muted);text-align:center;padding-inline:8px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;z-index:20;max-width:calc(100% - 32px);text-align:center}
+@media (prefers-reduced-motion:no-preference){.gauge i,.bar i{transition:left .4s ease,width .4s ease}}
+@media (max-width:380px){.price{font-size:46px}.returns{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="row spread">
+      <div class="brand"><span class="mark" aria-hidden="true"></span><b>Bullion Watch</b></div>
+      <div class="seg" role="group" aria-label="Currency">
+        <button id="cur-gbp" aria-pressed="true" data-cur="gbp">£ GBP</button>
+        <button id="cur-usd" aria-pressed="false" data-cur="usd">$ USD</button>
+      </div>
+    </div>
+    <div class="row spread" style="margin-top:10px;align-items:flex-end">
+      <div>
+        <div class="label">Gold spot · per troy oz</div>
+        <div class="price num" id="price">—</div>
+      </div>
+      <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        <div class="chg num" id="chg1d">—</div>
+        <button class="status" id="status" title="Tap to refresh"><span class="dot"></span><span id="status-t">Loading…</span></button>
+      </div>
+    </div>
+    <div class="subprices num" id="subprices" style="margin-top:8px"></div>
+  </header>
+
+  <div class="banner err" id="err-banner" hidden><p id="err-text"></p><button class="x" id="err-x" aria-label="Dismiss">×</button></div>
+  <div class="banner" id="install-banner" hidden><p id="install-text"></p><button class="btn sm primary" id="install-btn" hidden>Install</button><button class="x" id="install-x" aria-label="Dismiss">×</button></div>
+
+  <section class="card signal" aria-labelledby="sig-h">
+    <div class="row spread"><h2 id="sig-h">Today's signal</h2><span class="note" id="sig-date"></span></div>
+    <div class="verdict"><span class="pill" id="sig-pill">—</span><span class="note num" id="sig-score"></span></div>
+    <div>
+      <div class="gauge" aria-hidden="true"><i id="sig-needle" style="left:50%"></i></div>
+      <div class="gauge-l"><span>Strong sell</span><span>Hold</span><span>Strong buy</span></div>
+    </div>
+    <p style="margin:0;font-size:14px" id="sig-summary"></p>
+    <ul class="reasons" id="sig-reasons"></ul>
+  </section>
+
+  <section class="card" aria-labelledby="chart-h">
+    <div class="row spread"><h2 id="chart-h">Price history</h2>
+      <div class="ranges" role="group" aria-label="Range" id="ranges">
+        <button data-r="1M" aria-pressed="false">1M</button>
+        <button data-r="6M" aria-pressed="false">6M</button>
+        <button data-r="1Y" aria-pressed="true">1Y</button>
+        <button data-r="2Y" aria-pressed="false">2Y</button>
+        <button data-r="20Y" aria-pressed="false">20Y</button>
+      </div>
+    </div>
+    <div class="row spread"><span class="num" id="range-chg" style="font-weight:600"></span><span class="note" id="range-span"></span></div>
+    <div class="chartbox" id="chartbox"><svg id="chart" role="img" aria-label="Gold price chart"></svg><div class="tip" id="tip" hidden></div></div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section class="card" aria-labelledby="ind-h">
+    <h2 id="ind-h">Trend &amp; momentum</h2>
+    <div class="grid" id="stats"></div>
+    <div>
+      <div class="label" style="margin-bottom:6px">Change over</div>
+      <div class="returns num" id="returns"></div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="mine-h">
+    <div class="row spread"><h2 id="mine-h">My gold</h2><span class="note">Saved on this phone</span></div>
+    <p class="note" style="margin:0">Valued at what a UK dealer would pay you today (buyback). Targets show the spot price you need for each profit level.</p>
+    <div id="holdings" style="display:flex;flex-direction:column;gap:10px"></div>
+    <details id="addbox">
+      <summary class="btn primary" style="display:inline-block" id="add-summary">Add a holding</summary>
+      <form id="hform" style="margin-top:12px" autocomplete="off" novalidate>
+        <input type="hidden" id="h-id">
+        <label class="f full">Name<input id="h-name" placeholder="e.g. 100g PAMP bar" maxlength="60"></label>
+        <label class="f">Type
+          <select id="h-type">
+            <option value="bar">Gold bar</option>
+            <option value="ukcoin">Britannia / Sovereign (CGT-free)</option>
+            <option value="coin">Other coin (Krugerrand, Maple…)</option>
+            <option value="jewel">Jewellery / scrap</option>
+          </select></label>
+        <label class="f">Weight (g)<input id="h-grams" type="number" inputmode="decimal" step="0.001" min="0.01" placeholder="100"></label>
+        <label class="f">Purity
+          <select id="h-purity">
+            <option value="999.9">24K · 999.9</option>
+            <option value="916.7">22K · 916.7</option>
+            <option value="875">21K · 875</option>
+            <option value="750">18K · 750</option>
+          </select></label>
+        <label class="f">Paid (£, all-in)<input id="h-paid" type="number" inputmode="decimal" step="0.01" min="0" placeholder="10391"></label>
+        <label class="f">Date bought<input id="h-date" type="date"></label>
+        <label class="f">Bought in<input id="h-where" placeholder="Dubai" maxlength="40"></label>
+        <p class="note full" id="h-err" style="margin:0;color:var(--bad)" hidden></p>
+        <div class="row full"><button class="btn primary" type="submit">Save holding</button><button class="btn" type="button" id="h-cancel">Cancel</button></div>
+      </form>
+    </details>
+    <details>
+      <summary class="note">Settings &amp; backup</summary>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+        <label class="f">UK dealer buyback (% of spot)<input id="bb" type="number" inputmode="decimal" min="80" max="100" step="0.5" value="96"></label>
+        <p class="note" style="margin:0">BullionByPost paid about 96% of spot in October 2026. Get 2–3 quotes before you sell.</p>
+        <div class="row"><button class="btn sm" id="exp-file">Download backup</button><button class="btn sm" id="exp-copy">Copy backup</button><label class="btn sm" for="imp-file" style="cursor:pointer">Restore from file</label><input type="file" id="imp-file" accept="application/json,.json,.txt" hidden></div>
+        <label class="f">Or paste a backup here<textarea id="imp-text" placeholder='{"app":"bullion-watch", …}'></textarea></label>
+        <div class="row"><button class="btn sm" id="imp-go">Restore pasted backup</button></div>
+      </div>
+    </details>
+  </section>
+
+  <section class="card" aria-labelledby="snap-h">
+    <h2 id="snap-h">Dubai vs UK today</h2>
+    <div class="snap num" id="snap"></div>
+    <p class="note" style="margin:0">Dealer premiums are October 2026 estimates (Dubai bars ≈ spot +2.2% with no VAT; UK 100g bars ≈ spot +4.2%). Check the dealer's live price before buying.</p>
+  </section>
+
+  <section class="card method" aria-labelledby="how-h">
+    <h2 id="how-h">How the signal works</h2>
+    <p>The app scores gold on five rules using daily closing prices, with today's live price as a provisional close. The total runs from −8 (strong sell) to +8 (strong buy).</p>
+    <ul>
+      <li><b>Discount from the record:</b> 20%+ below the all-time high scores +2, 10%+ scores +1, within 3% of it scores −1.</li>
+      <li><b>Momentum (RSI 14-day):</b> under 30 is oversold (+2), under 40 (+1), over 60 (−1), over 70 is overbought (−2).</li>
+      <li><b>Long-term trend:</b> price above its 200-day average scores +1, below it −1.</li>
+      <li><b>Trend direction:</b> 50-day average above the 200-day (+1) or below it (−1).</li>
+      <li><b>Overstretch:</b> more than 12% above the 200-day average (−1), more than 20% (−2).</li>
+    </ul>
+    <p>Peaks and troughs mark swings that reversed by at least 3–20% depending on the range. Signals look backwards and can't predict shocks. The coloured strip under the chart shows what the signal said each day.</p>
+    <p>Live spot price from gold-api.com, refreshed every minute while the app is open. Daily closes and the £/$ rate from the open fawazahmed0 currency dataset (via jsDelivr, with Cloudflare as backup). Monthly averages for 2006–2024 from the datasets/gold-prices project. Prices can differ slightly from LBMA fixes and dealer quotes.</p>
+    <p class="note" id="diag"></p>
+  </section>
+
+  <p class="disclaimer">For information only. Not financial advice. Gold can fall as well as rise, and past patterns don't guarantee future prices.</p>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+"use strict";
+const APP_VERSION='1.0.0';
+const HIST = {"monthly":[["2006-01",550,311],["2006-02",555,318],["2006-03",557,319],["2006-04",611,346],["2006-05",675,361],["2006-06",596,323],["2006-07",634,344],["2006-08",633,334],["2006-09",598,317],["2006-10",586,312],["2006-11",628,328],["2006-12",630,321],["2007-01",631,322],["2007-02",665,339],["2007-03",655,336],["2007-04",679,342],["2007-05",667,336],["2007-06",656,330],["2007-07",665,327],["2007-08",665,331],["2007-09",713,353],["2007-10",755,369],["2007-11",806,389],["2007-12",803,398],["2008-01",890,452],["2008-02",922,469],["2008-03",968,484],["2008-04",910,459],["2008-05",889,452],["2008-06",889,452],["2008-07",940,473],["2008-08",839,445],["2008-09",830,462],["2008-10",807,479],["2008-11",761,496],["2008-12",816,549],["2009-01",859,594],["2009-02",943,654],["2009-03",924,652],["2009-04",890,605],["2009-05",929,603],["2009-06",946,578],["2009-07",934,570],["2009-08",949,574],["2009-09",997,611],["2009-10",1043,643],["2009-11",1127,679],["2009-12",1135,700],["2010-01",1118,692],["2010-02",1095,701],["2010-03",1113,739],["2010-04",1149,749],["2010-05",1205,821],["2010-06",1233,835],["2010-07",1193,780],["2010-08",1216,776],["2010-09",1271,815],["2010-10",1342,846],["2010-11",1370,858],["2010-12",1391,892],["2011-01",1360,862],["2011-02",1375,853],["2011-03",1423,881],["2011-04",1481,904],["2011-05",1513,926],["2011-06",1529,943],["2011-07",1573,974],["2011-08",1759,1075],["2011-09",1772,1124],["2011-10",1666,1057],["2011-11",1739,1100],["2011-12",1640,1052],["2012-01",1654,1066],["2012-02",1745,1104],["2012-03",1676,1059],["2012-04",1649,1031],["2012-05",1589,998],["2012-06",1599,1028],["2012-07",1594,1022],["2012-08",1630,1037],["2012-09",1745,1082],["2012-10",1747,1086],["2012-11",1722,1078],["2012-12",1685,1044],["2013-01",1672,1047],["2013-02",1628,1052],["2013-03",1593,1056],["2013-04",1488,972],["2013-05",1414,924],["2013-06",1343,867],["2013-07",1286,847],["2013-08",1352,872],["2013-09",1349,849],["2013-10",1317,818],["2013-11",1276,793],["2013-12",1222,746],["2014-01",1244,755],["2014-02",1300,785],["2014-03",1336,804],["2014-04",1298,775],["2014-05",1289,765],["2014-06",1279,756],["2014-07",1311,768],["2014-08",1295,775],["2014-09",1237,759],["2014-10",1222,760],["2014-11",1175,745],["2014-12",1201,768],["2015-01",1251,826],["2015-02",1227,800],["2015-03",1179,788],["2015-04",1199,801],["2015-05",1199,776],["2015-06",1182,759],["2015-07",1128,725],["2015-08",1118,718],["2015-09",1125,734],["2015-10",1159,755],["2015-11",1086,715],["2015-12",1076,718],["2016-01",1098,763],["2016-02",1200,840],["2016-03",1245,874],["2016-04",1242,867],["2016-05",1261,868],["2016-06",1276,899],["2016-07",1337,1018],["2016-08",1340,1023],["2016-09",1327,1010],["2016-10",1267,1028],["2016-11",1238,996],["2016-12",1157,927],["2017-01",1192,964],["2017-02",1234,988],["2017-03",1231,997],["2017-04",1267,1002],["2017-05",1246,964],["2017-06",1260,984],["2017-07",1237,952],["2017-08",1283,991],["2017-09",1314,985],["2017-10",1280,970],["2017-11",1282,970],["2017-12",1264,943],["2018-01",1331,963],["2018-02",1331,953],["2018-03",1325,948],["2018-04",1335,948],["2018-05",1303,967],["2018-06",1282,964],["2018-07",1238,941],["2018-08",1202,933],["2018-09",1198,917],["2018-10",1215,934],["2018-11",1221,947],["2018-12",1250,987],["2019-01",1292,1001],["2019-02",1320,1014],["2019-03",1301,988],["2019-04",1286,987],["2019-05",1284,999],["2019-06",1359,1072],["2019-07",1413,1134],["2019-08",1500,1234],["2019-09",1511,1222],["2019-10",1495,1181],["2019-11",1471,1142],["2019-12",1479,1128],["2020-01",1561,1194],["2020-02",1597,1233],["2020-03",1592,1287],["2020-04",1683,1355],["2020-05",1716,1395],["2020-06",1732,1383],["2020-07",1847,1454],["2020-08",1969,1498],["2020-09",1922,1485],["2020-10",1900,1464],["2020-11",1866,1414],["2020-12",1858,1383],["2021-01",1867,1369],["2021-02",1808,1304],["2021-03",1718,1239],["2021-04",1760,1271],["2021-05",1850,1314],["2021-06",1835,1308],["2021-07",1808,1309],["2021-08",1785,1294],["2021-09",1775,1293],["2021-10",1777,1297],["2021-11",1822,1353],["2021-12",1790,1346],["2022-01",1816,1340],["2022-02",1856,1371],["2022-03",1948,1479],["2022-04",1937,1498],["2022-05",1849,1487],["2022-06",1837,1491],["2022-07",1733,1446],["2022-08",1765,1473],["2022-09",1681,1485],["2022-10",1664,1468],["2022-11",1725,1471],["2022-12",1798,1476],["2023-01",1898,1551],["2023-02",1855,1535],["2023-03",1913,1576],["2023-04",2000,1607],["2023-05",1992,1596],["2023-06",1943,1539],["2023-07",1951,1513],["2023-08",1919,1510],["2023-09",1916,1548],["2023-10",1916,1574],["2023-11",1984,1595],["2023-12",2026,1601],["2024-01",2034,1601],["2024-02",2023,1602]],"daily":[["2024-03-02",2083.7,1646.6],["2024-03-03",2082.9,1646.0],["2024-03-04",2081.3,1643.9],["2024-03-05",2116.4,1667.4],["2024-03-06",2127.6,1675.8],["2024-03-07",2148.9,1687.0],["2024-03-08",2159.8,1685.7],["2024-03-09",2177.8,1694.3],["2024-03-10",2178.5,1695.3],["2024-03-11",2183.7,1697.9],["2024-03-12",2181.3,1701.8],["2024-03-13",2159.1,1687.4],["2024-03-14",2176.5,1700.1],["2024-03-15",2164.2,1699.0],["2024-03-16",2155.9,1692.2],["2024-03-17",2156.0,1692.8],["2024-03-18",2153.7,1691.9],["2024-03-19",2160.6,1698.5],["2024-03-20",2157.4,1696.4],["2024-03-21",2206.8,1724.3],["2024-03-22",2185.6,1724.6],["2024-03-23",2165.4,1718.1],["2024-03-24",2165.6,1717.7],["2024-03-25",2165.8,1719.2],["2024-03-26",2171.8,1718.0],["2024-03-27",2179.8,1727.1],["2024-03-28",2188.0,1733.5],["2024-03-29",2232.9,1768.1],["2024-03-30",2232.9,1768.6],["2024-03-31",2232.8,1768.5],["2024-04-01",2258.0,1787.0],["2024-04-02",2249.1,1793.2],["2024-04-03",2278.9,1812.8],["2024-04-04",2299.2,1817.3],["2024-04-05",2278.6,1801.9],["2024-04-06",2328.7,1842.8],["2024-04-07",2329.5,1843.2],["2024-04-08",2307.4,1828.5],["2024-04-09",2341.8,1850.4],["2024-04-10",2346.4,1851.0],["2024-04-11",2338.7,1864.9],["2024-04-12",2387.0,1901.2],["2024-04-13",2344.4,1883.0],["2024-04-14",2344.5,1882.4],["2024-04-15",2357.9,1892.4],["2024-04-16",2382.0,1916.1],["2024-04-17",2384.5,1918.5],["2024-04-18",2370.6,1902.9],["2024-04-19",2391.3,1924.5],["2024-04-20",2390.6,1932.4],["2024-04-21",2390.8,1931.4],["2024-04-22",2382.7,1924.2],["2024-04-23",2333.7,1888.6],["2024-04-24",2320.8,1862.9],["2024-04-25",2316.4,1859.7],["2024-04-26",2327.1,1861.4],["2024-04-27",2338.0,1871.2],["2024-04-28",2337.9,1872.2],["2024-04-29",2326.0,1858.8],["2024-04-30",2333.3,1858.6],["2024-05-01",2287.7,1831.9],["2024-05-02",2325.8,1856.1],["2024-05-03",2304.7,1837.2],["2024-05-04",2302.5,1835.2],["2024-05-05",2302.6,1835.8],["2024-05-06",2304.5,1835.6],["2024-05-07",2328.0,1853.0],["2024-05-08",2314.0,1851.8],["2024-05-09",2310.1,1849.3],["2024-05-10",2351.0,1877.6],["2024-05-11",2360.5,1884.7],["2024-05-12",2360.5,1885.0],["2024-05-13",2359.2,1884.1],["2024-05-14",2340.2,1863.6],["2024-05-15",2355.8,1871.1],["2024-05-16",2394.7,1886.5],["2024-05-17",2376.9,1877.8],["2024-05-18",2415.0,1901.6],["2024-05-19",2414.3,1900.7],["2024-05-20",2431.0,1913.6],["2024-05-21",2430.9,1912.8],["2024-05-22",2422.4,1905.3],["2024-05-23",2377.0,1868.4],["2024-05-24",2330.2,1835.9],["2024-05-25",2334.4,1832.4],["2024-05-26",2334.3,1832.8],["2024-05-27",2338.2,1835.2],["2024-05-28",2349.8,1839.4],["2024-05-29",2357.4,1847.6],["2024-05-30",2338.9,1841.8],["2024-05-31",2343.6,1841.5],["2024-06-01",2327.8,1827.2],["2024-06-02",2327.5,1827.4],["2024-06-03",2329.4,1826.8],["2024-06-04",2348.5,1833.5],["2024-06-05",2327.3,1821.8],["2024-06-06",2364.2,1846.1],["2024-06-07",2374.7,1857.1],["2024-06-08",2293.4,1802.8],["2024-06-09",2293.7,1802.4],["2024-06-10",2293.1,1802.1],["2024-06-11",2307.4,1813.0],["2024-06-12",2312.2,1815.6],["2024-06-13",2313.6,1808.1],["2024-06-14",2307.1,1809.1],["2024-06-15",2332.9,1839.3],["2024-06-16",2333.0,1838.9],["2024-06-17",2328.3,1835.9],["2024-06-18",2320.7,1826.5],["2024-06-19",2327.9,1832.1],["2024-06-20",2332.6,1834.7],["2024-06-21",2360.5,1864.9],["2024-06-22",2321.5,1835.8],["2024-06-23",2321.0,1834.5],["2024-06-24",2323.2,1838.7],["2024-06-25",2328.7,1835.5],["2024-06-26",2319.9,1828.6],["2024-06-27",2298.5,1821.2],["2024-06-28",2321.8,1838.5],["2024-06-29",2326.1,1839.5],["2024-06-30",2326.5,1839.7],["2024-07-01",2328.2,1838.4],["2024-07-02",2332.2,1845.4],["2024-07-03",2329.9,1836.4],["2024-07-04",2359.1,1850.5],["2024-07-05",2359.3,1847.8],["2024-07-06",2391.5,1866.3],["2024-07-07",2391.6,1867.0],["2024-07-08",2388.8,1865.4],["2024-07-09",2363.5,1845.5],["2024-07-10",2367.4,1851.3],["2024-07-11",2374.1,1847.5],["2024-07-12",2410.4,1867.4],["2024-07-13",2411.7,1857.9],["2024-07-14",2411.7,1858.1],["2024-07-15",2406.7,1856.3],["2024-07-16",2424.7,1870.4],["2024-07-17",2475.6,1908.7],["2024-07-18",2462.9,1893.9],["2024-07-19",2429.2,1877.1],["2024-07-20",2398.8,1856.8],["2024-07-21",2400.1,1857.7],["2024-07-22",2409.9,1864.7],["2024-07-23",2402.6,1857.7],["2024-07-24",2408.8,1867.7],["2024-07-25",2393.2,1855.5],["2024-07-26",2360.2,1835.8],["2024-07-27",2387.9,1856.2],["2024-07-28",2387.3,1854.9],["2024-07-29",2396.9,1860.8],["2024-07-30",2380.1,1852.2],["2024-07-31",2404.6,1872.2],["2024-08-01",2452.9,1907.4],["2024-08-02",2440.8,1918.8],["2024-08-03",2442.1,1907.8],["2024-08-04",2442.0,1907.5],["2024-08-05",2437.2,1906.0],["2024-08-06",2412.7,1886.0],["2024-08-07",2380.7,1874.7],["2024-08-08",2389.3,1883.4],["2024-08-09",2424.0,1901.8],["2024-08-10",2430.8,1905.2],["2024-08-11",2431.0,1907.5],["2024-08-12",2430.0,1904.2],["2024-08-13",2462.6,1929.1],["2024-08-14",2471.8,1921.2],["2024-08-15",2452.9,1912.9],["2024-08-16",2459.8,1912.0],["2024-08-17",2508.1,1937.4],["2024-08-18",2508.2,1937.6],["2024-08-19",2496.9,1928.6],["2024-08-20",2504.9,1928.2],["2024-08-21",2513.4,1928.0],["2024-08-22",2512.4,1919.2],["2024-08-23",2490.3,1900.8],["2024-08-24",2512.0,1900.5],["2024-08-25",2512.0,1901.4],["2024-08-26",2515.1,1902.5],["2024-08-27",2512.7,1905.0],["2024-08-28",2521.1,1902.0],["2024-08-29",2512.2,1902.6],["2024-08-30",2519.1,1913.1],["2024-08-31",2503.4,1907.1],["2024-09-01",2503.3,1906.5],["2024-09-02",2504.2,1907.2],["2024-09-03",2491.4,1896.1],["2024-09-04",2492.7,1901.6],["2024-09-05",2497.2,1898.8],["2024-09-06",2514.2,1908.2],["2024-09-07",2497.7,1902.3],["2024-09-08",2497.5,1901.9],["2024-09-09",2497.4,1901.0],["2024-09-10",2504.0,1916.3],["2024-09-11",2519.7,1925.5],["2024-09-12",2514.5,1928.8],["2024-09-13",2564.5,1951.1],["2024-09-14",2580.6,1966.2],["2024-09-15",2579.0,1965.3],["2024-09-16",2581.9,1964.6],["2024-09-17",2580.4,1954.2],["2024-09-18",2572.6,1954.0],["2024-09-19",2553.4,1940.5],["2024-09-20",2587.8,1948.3],["2024-09-21",2622.2,1968.2],["2024-09-22",2622.3,1969.2],["2024-09-23",2620.8,1968.6],["2024-09-24",2628.8,1968.9],["2024-09-25",2658.0,1980.8],["2024-09-26",2658.4,1995.0],["2024-09-27",2667.5,1992.0],["2024-09-28",2655.1,1985.2],["2024-09-29",2657.3,1986.7],["2024-09-30",2657.3,1985.4],["2024-10-01",2638.6,1971.0],["2024-10-02",2659.7,2000.7],["2024-10-03",2655.6,2003.9],["2024-10-04",2658.0,2025.1],["2024-10-05",2652.3,2020.9],["2024-10-06",2652.9,2022.0],["2024-10-07",2650.2,2018.4],["2024-10-08",2640.5,2016.0],["2024-10-09",2621.6,2002.0],["2024-10-10",2608.2,1995.0],["2024-10-11",2634.5,2017.8],["2024-10-12",2657.0,2033.4],["2024-10-13",2656.8,2033.4],["2024-10-14",2648.1,2028.7],["2024-10-15",2649.8,2027.9],["2024-10-16",2664.7,2038.7],["2024-10-17",2679.6,2062.1],["2024-10-18",2703.2,2076.5],["2024-10-19",2721.4,2084.6],["2024-10-20",2721.4,2085.3],["2024-10-21",2728.2,2090.4],["2024-10-22",2728.7,2100.7],["2024-10-23",2739.5,2111.1],["2024-10-24",2725.3,2109.2],["2024-10-25",2734.0,2107.7],["2024-10-26",2746.9,2119.3],["2024-10-27",2747.7,2119.8],["2024-10-28",2728.1,2105.9],["2024-10-29",2750.9,2120.2],["2024-10-30",2780.8,2135.9],["2024-10-31",2786.3,2151.4],["2024-11-01",2747.6,2131.3],["2024-11-02",2735.2,2115.9],["2024-11-03",2736.0,2116.5],["2024-11-04",2738.6,2111.4],["2024-11-05",2733.7,2110.9],["2024-11-06",2743.9,2116.8],["2024-11-07",2649.6,2056.1],["2024-11-08",2702.2,2083.4],["2024-11-09",2683.9,2077.3],["2024-11-10",2684.4,2076.6],["2024-11-11",2677.7,2072.2],["2024-11-12",2621.8,2038.9],["2024-11-13",2609.4,2046.7],["2024-11-14",2566.4,2021.8],["2024-11-15",2564.4,2025.2],["2024-11-16",2561.5,2029.8],["2024-11-17",2562.4,2030.2],["2024-11-18",2587.0,2047.8],["2024-11-19",2614.8,2063.2],["2024-11-20",2638.7,2079.6],["2024-11-21",2655.8,2098.1],["2024-11-22",2676.9,2126.2],["2024-11-23",2708.9,2161.0],["2024-11-24",2713.2,2164.0],["2024-11-25",2698.4,2142.0],["2024-11-26",2629.8,2099.2],["2024-11-27",2628.9,2090.7],["2024-11-28",2626.0,2071.6],["2024-11-29",2646.5,2083.1],["2024-11-30",2650.4,2081.2],["2024-12-01",2650.1,2082.7],["2024-12-02",2635.5,2076.6],["2024-12-03",2635.2,2084.1],["2024-12-04",2640.2,2084.1],["2024-12-05",2647.3,2084.9],["2024-12-06",2618.8,2055.0],["2024-12-07",2633.0,2066.8],["2024-12-08",2633.1,2066.0],["2024-12-09",2645.7,2076.8],["2024-12-10",2663.0,2089.4],["2024-12-11",2701.1,2114.0],["2024-12-12",2711.0,2123.4],["2024-12-13",2689.8,2123.2],["2024-12-14",2648.8,2098.7],["2024-12-15",2648.9,2098.6],["2024-12-16",2652.6,2099.4],["2024-12-17",2656.9,2093.9],["2024-12-18",2643.4,2080.5],["2024-12-19",2617.1,2078.9],["2024-12-20",2601.4,2081.9],["2024-12-21",2621.4,2085.8],["2024-12-22",2622.6,2087.0],["2024-12-23",2621.1,2083.8],["2024-12-24",2617.0,2088.2],["2024-12-25",2614.4,2084.4],["2024-12-26",2627.2,2094.7],["2024-12-27",2631.1,2100.6],["2024-12-28",2620.0,2083.2],["2024-12-29",2621.5,2085.2],["2024-12-30",2625.6,2086.6],["2024-12-31",2610.1,2079.0],["2025-01-01",2624.6,2097.3],["2025-01-02",2633.4,2103.5],["2025-01-03",2658.0,2146.0],["2025-01-04",2639.5,2125.0],["2025-01-05",2640.2,2125.6],["2025-01-06",2643.6,2125.9],["2025-01-07",2638.4,2109.3],["2025-01-08",2649.0,2122.1],["2025-01-09",2659.0,2151.0],["2025-01-10",2670.0,2169.6],["2025-01-11",2689.9,2203.2],["2025-01-12",2689.5,2201.5],["2025-01-13",2683.6,2201.2],["2025-01-14",2668.9,2185.8],["2025-01-15",2673.8,2191.2],["2025-01-16",2700.4,2207.1],["2025-01-17",2712.0,2216.9],["2025-01-18",2701.9,2220.2],["2025-01-19",2702.4,2219.6],["2025-01-20",2690.9,2209.3],["2025-01-21",2712.3,2209.1],["2025-01-22",2748.3,2227.6],["2025-01-23",2754.9,2236.1],["2025-01-24",2760.6,2235.1],["2025-01-25",2771.4,2220.7],["2025-01-26",2771.6,2221.4],["2025-01-27",2766.0,2221.4],["2025-01-28",2743.6,2201.9],["2025-01-29",2766.2,2223.7],["2025-01-30",2760.9,2217.4],["2025-01-31",2795.8,2250.4],["2025-02-01",2801.2,2260.6],["2025-02-02",2799.4,2257.6],["2025-02-03",2783.8,2263.3],["2025-02-04",2819.8,2271.9],["2025-02-05",2840.5,2276.6],["2025-02-06",2869.1,2293.6],["2025-02-07",2864.8,2305.0],["2025-02-08",2861.4,2307.1],["2025-02-09",2861.3,2306.5],["2025-02-10",2867.7,2315.4],["2025-02-11",2930.6,2370.6],["2025-02-12",2893.8,2324.6],["2025-02-13",2903.8,2331.7],["2025-02-14",2931.8,2332.5],["2025-02-15",2883.6,2291.5],["2025-02-16",2883.0,2290.4],["2025-02-17",2893.4,2297.0],["2025-02-18",2896.6,2298.2],["2025-02-19",2935.8,2328.3],["2025-02-20",2935.6,2332.4],["2025-02-21",2939.9,2323.1],["2025-02-22",2936.4,2322.6],["2025-02-23",2936.1,2323.9],["2025-02-24",2929.8,2311.3],["2025-02-25",2946.8,2334.8],["2025-02-26",2930.0,2312.8],["2025-02-27",2916.4,2302.0],["2025-02-28",2880.7,2286.2],["2025-03-01",2858.6,2272.4],["2025-03-02",2858.2,2272.2],["2025-03-03",2869.6,2275.7],["2025-03-04",2887.3,2272.9],["2025-03-05",2910.4,2277.4],["2025-03-06",2922.7,2264.8],["2025-03-07",2909.2,2258.5],["2025-03-08",2911.2,2254.5],["2025-03-09",2913.1,2257.6],["2025-03-10",2915.5,2252.9],["2025-03-11",2890.1,2242.9],["2025-03-12",2915.9,2253.8],["2025-03-13",2937.1,2265.5],["2025-03-14",2988.2,2307.8],["2025-03-15",2986.9,2308.1],["2025-03-16",2989.0,2310.4],["2025-03-17",2991.7,2311.7],["2025-03-18",3004.3,2314.0],["2025-03-19",3028.3,2330.7],["2025-03-20",3052.3,2347.4],["2025-03-21",3037.2,2342.7],["2025-03-22",3023.2,2340.4],["2025-03-23",3021.5,2338.8],["2025-03-24",3022.6,2338.8],["2025-03-25",3013.1,2331.4],["2025-03-26",3022.9,2335.8],["2025-03-27",3024.2,2344.7],["2025-03-28",3071.2,2371.9],["2025-03-29",3082.9,2382.5],["2025-03-30",3082.9,2381.7],["2025-03-31",3080.1,2375.9],["2025-04-01",3134.1,2425.4],["2025-04-02",3132.6,2425.2],["2025-04-03",3155.7,2415.4],["2025-04-04",3111.4,2374.2],["2025-04-05",3037.8,2356.2],["2025-04-06",3037.8,2355.5],["2025-04-07",3043.8,2360.4],["2025-04-08",2998.4,2347.1],["2025-04-09",3003.5,2338.7],["2025-04-10",3088.7,2408.2],["2025-04-11",3190.6,2453.9],["2025-04-12",3237.3,2474.3],["2025-04-13",3237.3,2479.6],["2025-04-14",3242.4,2473.1],["2025-04-15",3221.5,2445.1],["2025-04-16",3267.6,2466.0],["2025-04-17",3330.8,2521.0],["2025-04-18",3328.3,2507.1],["2025-04-19",3328.3,2502.5],["2025-04-20",3328.3,2504.4],["2025-04-21",3378.1,2530.1],["2025-04-22",3450.1,2579.2],["2025-04-23",3383.7,2541.1],["2025-04-24",3354.1,2524.9],["2025-04-25",3344.3,2514.4],["2025-04-26",3314.7,2490.2],["2025-04-27",3314.7,2489.7],["2025-04-28",3284.8,2471.5],["2025-04-29",3324.4,2477.3],["2025-04-30",3312.6,2472.0],["2025-05-01",3239.5,2434.4],["2025-05-02",3235.2,2434.5],["2025-05-03",3240.3,2442.2],["2025-05-04",3240.3,2439.8],["2025-05-05",3264.6,2456.6],["2025-05-06",3375.7,2543.4],["2025-05-07",3376.6,2528.9],["2025-05-08",3404.9,2553.6],["2025-05-09",3291.6,2488.5],["2025-05-10",3328.6,2501.9],["2025-05-11",3328.6,2501.7],["2025-05-12",3272.7,2464.7],["2025-05-13",3225.5,2446.3],["2025-05-14",3242.1,2436.0],["2025-05-15",3176.3,2391.8],["2025-05-16",3219.0,2417.9],["2025-05-17",3201.1,2410.4],["2025-05-18",3201.1,2410.4],["2025-05-19",3219.5,2421.7],["2025-05-20",3223.0,2412.9],["2025-05-21",3297.7,2459.5],["2025-05-22",3339.1,2486.6],["2025-05-23",3302.6,2456.6],["2025-05-24",3359.8,2481.4],["2025-05-25",3359.8,2487.3],["2025-05-26",3344.9,2462.6],["2025-05-27",3334.1,2456.6],["2025-05-28",3302.9,2448.0],["2025-05-29",3263.6,2427.5],["2025-05-30",3309.8,2454.4],["2025-05-31",3292.1,2446.9],["2025-06-01",3292.1,2444.6],["2025-06-02",3306.1,2450.8],["2025-06-03",3373.0,2492.6],["2025-06-04",3371.5,2490.7],["2025-06-05",3373.9,2490.4],["2025-06-06",3363.6,2477.8],["2025-06-07",3310.8,2447.7],["2025-06-08",3310.8,2444.9],["2025-06-09",3298.2,2433.0],["2025-06-10",3307.0,2445.5],["2025-06-11",3328.9,2470.2],["2025-06-12",3370.5,2481.4],["2025-06-13",3426.3,2525.8],["2025-06-14",3432.9,2529.8],["2025-06-15",3432.9,2527.4],["2025-06-16",3443.6,2542.2],["2025-06-17",3394.6,2502.2],["2025-06-18",3378.2,2513.9],["2025-06-19",3375.0,2519.3],["2025-06-20",3356.7,2490.3],["2025-06-21",3368.8,2503.3],["2025-06-22",3368.8,2504.6],["2025-06-23",3360.7,2502.7],["2025-06-24",3348.2,2472.7],["2025-06-25",3335.0,2447.4],["2025-06-26",3329.8,2432.0],["2025-06-27",3316.9,2414.4],["2025-06-28",3273.9,2388.2],["2025-06-29",3273.9,2385.7],["2025-06-30",3279.5,2390.4],["2025-07-01",3315.7,2414.9],["2025-07-02",3332.4,2425.7],["2025-07-03",3347.2,2452.7],["2025-07-04",3330.1,2439.9],["2025-07-05",3337.6,2444.7],["2025-07-06",3337.6,2445.4],["2025-07-07",3315.0,2431.3],["2025-07-08",3335.1,2447.5],["2025-07-09",3302.1,2430.1],["2025-07-10",3322.4,2441.5],["2025-07-11",3328.7,2454.9],["2025-07-12",3356.9,2486.3],["2025-07-13",3356.9,2480.6],["2025-07-14",3356.1,2487.7],["2025-07-15",3349.2,2493.5],["2025-07-16",3328.8,2485.8],["2025-07-17",3342.5,2495.2],["2025-07-18",3340.5,2487.4],["2025-07-19",3351.9,2499.8],["2025-07-20",3351.8,2498.8],["2025-07-21",3355.4,2501.7],["2025-07-22",3386.9,2512.2],["2025-07-23",3422.4,2530.4],["2025-07-24",3387.2,2494.1],["2025-07-25",3367.8,2495.1],["2025-07-26",3336.4,2482.4],["2025-07-27",3336.4,2478.9],["2025-07-28",3333.6,2481.9],["2025-07-29",3319.1,2485.5],["2025-07-30",3331.6,2492.9],["2025-07-31",3295.6,2485.4],["2025-08-01",3288.6,2492.4],["2025-08-02",3362.6,2532.2],["2025-08-03",3362.6,2533.8],["2025-08-04",3354.7,2525.6],["2025-08-05",3377.2,2542.1],["2025-08-06",3374.7,2537.4],["2025-08-07",3380.0,2530.7],["2025-08-08",3387.8,2520.1],["2025-08-09",3398.3,2528.9],["2025-08-10",3398.3,2528.0],["2025-08-11",3372.0,2506.0],["2025-08-12",3350.1,2494.2],["2025-08-13",3348.6,2480.7],["2025-08-14",3367.9,2479.9],["2025-08-15",3339.9,2466.8],["2025-08-16",3336.5,2463.2],["2025-08-17",3336.6,2461.5],["2025-08-18",3346.1,2468.2],["2025-08-19",3333.7,2470.0],["2025-08-20",3316.2,2460.6],["2025-08-21",3344.0,2484.5],["2025-08-22",3334.5,2486.3],["2025-08-23",3371.7,2492.7],["2025-08-24",3371.7,2497.7],["2025-08-25",3362.7,2492.4],["2025-08-26",3376.6,2506.3],["2025-08-27",3386.3,2513.6],["2025-08-28",3386.0,2507.4],["2025-08-29",3409.8,2526.0],["2025-08-30",3447.9,2551.7],["2025-08-31",3447.9,2553.1],["2025-09-01",3465.0,2563.1],["2025-09-02",3492.6,2580.1],["2025-09-03",3537.3,2645.4],["2025-09-04",3548.0,2639.6],["2025-09-05",3552.3,2641.3],["2025-09-06",3586.7,2655.7],["2025-09-07",3586.7,2657.4],["2025-09-08",3588.8,2658.7],["2025-09-09",3647.0,2689.3],["2025-09-10",3627.2,2682.1],["2025-09-11",3641.7,2691.5],["2025-09-12",3646.2,2688.8],["2025-09-13",3643.1,2687.5],["2025-09-14",3643.1,2687.0],["2025-09-15",3634.4,2680.4],["2025-09-16",3678.8,2703.9],["2025-09-17",3679.5,2697.3],["2025-09-18",3654.5,2684.5],["2025-09-19",3635.7,2685.4],["2025-09-20",3685.1,2738.3],["2025-09-21",3685.1,2733.2],["2025-09-22",3688.4,2738.6],["2025-09-23",3756.9,2777.6],["2025-09-24",3758.2,2781.4],["2025-09-25",3740.1,2780.6],["2025-09-26",3741.2,2804.1],["2025-09-27",3762.7,2810.5],["2025-09-28",3762.7,2809.0],["2025-09-29",3774.5,2811.3],["2025-09-30",3847.5,2865.1],["2025-10-01",3869.0,2878.3],["2025-10-02",3863.4,2865.5],["2025-10-03",3857.2,2870.0],["2025-10-04",3885.5,2882.2],["2025-10-05",3885.5,2883.9],["2025-10-06",3912.9,2909.4],["2025-10-07",3958.2,2937.4],["2025-10-08",3995.1,2981.3],["2025-10-09",4023.9,3000.8],["2025-10-10",3979.8,2991.8],["2025-10-11",4018.3,3009.9],["2025-10-12",4018.3,3009.2],["2025-10-13",4051.4,3033.7],["2025-10-14",4135.4,3099.2],["2025-10-15",4180.1,3133.9],["2025-10-16",4228.8,3146.2],["2025-10-17",4330.8,3222.8],["2025-10-18",4250.0,3165.8],["2025-10-19",4250.0,3165.0],["2025-10-20",4263.1,3173.6],["2025-10-21",4347.4,3243.7],["2025-10-22",4091.3,3059.9],["2025-10-23",4081.3,3058.6],["2025-10-24",4123.0,3094.3],["2025-10-25",4112.3,3089.0],["2025-10-26",4112.3,3089.9],["2025-10-27",4078.3,3060.4],["2025-10-28",4011.6,3004.7],["2025-10-29",3974.0,2995.9],["2025-10-30",3948.1,2989.4],["2025-10-31",4016.1,3052.5],["2025-11-01",4002.3,3042.4],["2025-11-02",4002.2,3043.4],["2025-11-03",3996.7,3043.0],["2025-11-04",3989.0,3039.3],["2025-11-05",3937.3,3023.4],["2025-11-06",3975.7,3043.1],["2025-11-07",4002.2,3049.2],["2025-11-08",3999.9,3038.6],["2025-11-09",3999.9,3040.5],["2025-11-10",4043.2,3074.6],["2025-11-11",4132.4,3139.6],["2025-11-12",4132.5,3144.9],["2025-11-13",4192.8,3195.1],["2025-11-14",4192.9,3188.7],["2025-11-15",4080.4,3096.7],["2025-11-16",4080.4,3094.9],["2025-11-17",4092.8,3110.7],["2025-11-18",4023.7,3059.0],["2025-11-19",4060.4,3091.4],["2025-11-20",4090.7,3135.2],["2025-11-21",4073.4,3113.0],["2025-11-22",4065.9,3107.3],["2025-11-23",4065.9,3104.0],["2025-11-24",4046.6,3091.2],["2025-11-25",4135.5,3154.8],["2025-11-26",4149.8,3148.1],["2025-11-27",4150.8,3131.0],["2025-11-28",4191.4,3167.7],["2025-11-29",4216.4,3184.8],["2025-11-30",4216.4,3184.2],["2025-12-01",4244.5,3208.9],["2025-12-02",4220.5,3194.4],["2025-12-03",4215.5,3187.1],["2025-12-04",4207.9,3154.3],["2025-12-05",4203.9,3153.0],["2025-12-06",4197.4,3148.8],["2025-12-07",4197.4,3145.6],["2025-12-08",4201.3,3149.9],["2025-12-09",4195.8,3147.0],["2025-12-11",4212.4,3151.8],["2025-12-12",4271.9,3190.0],["2025-12-13",4302.4,3217.2],["2025-12-14",4302.4,3213.3],["2025-12-15",4326.0,3236.0],["2025-12-16",4310.9,3225.2],["2025-12-17",4326.4,3222.7],["2025-12-18",4331.8,3241.0],["2025-12-19",4327.0,3232.8],["2025-12-20",4338.5,3243.5],["2025-12-21",4338.5,3241.9],["2025-12-22",4380.0,3269.2],["2025-12-23",4483.9,3326.5],["2025-12-24",4517.0,3338.3],["2025-12-25",4480.0,3314.9],["2025-12-26",4499.8,3330.2],["2025-12-27",4532.6,3359.4],["2025-12-28",4532.6,3358.6],["2025-12-29",4505.5,3336.5],["2025-12-30",4356.1,3224.4],["2025-12-31",4370.0,3246.4],["2026-01-01",4315.1,3202.1],["2026-01-02",4348.3,3223.4],["2026-01-03",4330.5,3217.9],["2026-01-04",4330.5,3216.5],["2026-01-05",4395.9,3272.4],["2026-01-06",4452.2,3287.4],["2026-01-07",4467.4,3306.4],["2026-01-08",4443.9,3302.9],["2026-01-09",4473.9,3331.8],["2026-01-10",4509.8,3365.8],["2026-01-11",4509.8,3364.1],["2026-01-12",4568.7,3402.4],["2026-01-13",4585.4,3403.7],["2026-01-14",4618.8,3439.8],["2026-01-15",4607.2,3429.8],["2026-01-16",4603.0,3439.4],["2026-01-17",4595.3,3443.7],["2026-01-18",4595.3,3434.3],["2026-01-19",4660.9,3481.9],["2026-01-20",4667.7,3477.6],["2026-01-21",4826.8,3588.8],["2026-01-22",4793.9,3569.1],["2026-01-23",4951.9,3669.1],["2026-01-24",4982.4,3650.6],["2026-01-25",4982.4,3652.5],["2026-01-26",5087.9,3720.9],["2026-01-27",5062.1,3698.7],["2026-01-28",5204.1,3771.9],["2026-01-29",5539.4,4011.3],["2026-01-30",5163.1,3755.3],["2026-01-31",4865.4,3555.5],["2026-02-01",4865.4,3553.9],["2026-02-02",4766.5,3480.0],["2026-02-03",4779.5,3494.6],["2026-02-04",5046.8,3682.6],["2026-02-05",4926.8,3612.3],["2026-02-06",4830.0,3564.9],["2026-02-07",4959.0,3642.8],["2026-02-08",4959.0,3642.8],["2026-02-09",4996.4,3671.6],["2026-02-10",5040.6,3681.3],["2026-02-11",5054.6,3701.0],["2026-02-12",5054.8,3706.7],["2026-02-13",4976.7,3653.4],["2026-02-14",5043.1,3693.2],["2026-02-15",5043.1,3694.3],["2026-02-16",5004.7,3668.5],["2026-02-17",4963.5,3645.6],["2026-02-18",4905.2,3618.2],["2026-02-19",4973.0,3684.7],["2026-02-20",4999.1,3720.1],["2026-02-21",5098.5,3782.3],["2026-02-22",5098.5,3780.5],["2026-02-23",5175.2,3826.0],["2026-02-24",5186.5,3842.5],["2026-02-25",5183.8,3836.4],["2026-02-26",5177.1,3817.4],["2026-02-27",5183.9,3844.1],["2026-02-28",5277.9,3912.9],["2026-03-01",5277.9,3914.0],["2026-03-02",5338.1,3971.1],["2026-03-03",5358.1,3996.1],["2026-03-04",5174.2,3880.7],["2026-03-05",5182.7,3879.0],["2026-03-06",5129.7,3837.0],["2026-03-07",5171.1,3854.1],["2026-03-08",5171.1,3855.5],["2026-03-09",5088.2,3824.0],["2026-03-10",5182.2,3857.3],["2026-03-11",5203.6,3872.1],["2026-03-12",5165.3,3863.7],["2026-03-13",5120.0,3833.0],["2026-03-14",5019.7,3793.3],["2026-03-15",5019.7,3791.6],["2026-03-16",5002.5,3774.0],["2026-03-17",5024.3,3775.1],["2026-03-18",5001.8,3745.1],["2026-03-19",4861.6,3656.9],["2026-03-20",4687.1,3494.3],["2026-03-21",4497.4,3370.4],["2026-03-22",4497.4,3371.3],["2026-03-23",4373.2,3283.0],["2026-03-24",4366.4,3257.0],["2026-03-25",4596.4,3429.0],["2026-03-26",4517.3,3382.8],["2026-03-27",4433.0,3322.5],["2026-03-28",4510.1,3399.5],["2026-03-29",4507.7,3398.3],["2026-03-30",4505.8,3396.3],["2026-03-31",4574.9,3462.9],["2026-04-01",4690.1,3542.9],["2026-04-02",4681.4,3534.2],["2026-04-03",4676.4,3536.0],["2026-04-04",4676.4,3544.7],["2026-04-05",4676.4,3542.7],["2026-04-06",4627.4,3503.6],["2026-04-07",4652.8,3519.8],["2026-04-08",4803.0,3584.7],["2026-04-09",4721.3,3525.6],["2026-04-10",4752.5,3540.0],["2026-04-11",4747.9,3528.8],["2026-04-12",4747.9,3528.8],["2026-04-13",4712.8,3516.4],["2026-04-14",4761.9,3525.2],["2026-04-15",4828.3,3561.0],["2026-04-16",4822.7,3550.7],["2026-04-17",4787.0,3541.0],["2026-04-18",4844.8,3582.4],["2026-04-19",4844.8,3582.4],["2026-04-20",4798.5,3554.2],["2026-04-21",4807.8,3555.6],["2026-04-22",4754.6,3520.1],["2026-04-23",4698.2,3483.9],["2026-04-24",4670.3,3470.2],["2026-04-25",4707.9,3488.5],["2026-04-26",4707.9,3488.5],["2026-04-27",4728.2,3492.3],["2026-04-28",4667.0,3448.7],["2026-04-29",4591.8,3397.9],["2026-04-30",4558.0,3382.6],["2026-05-01",4619.8,3394.7],["2026-05-02",4616.3,3399.8],["2026-05-03",4616.3,3393.7],["2026-05-04",4598.4,3385.0],["2026-05-05",4530.0,3349.3],["2026-05-06",4651.1,3427.6],["2026-05-07",4702.6,3457.1],["2026-05-08",4709.9,3474.1],["2026-05-09",4716.8,3459.6],["2026-05-10",4716.8,3459.6],["2026-05-11",4684.1,3446.6],["2026-05-12",4720.6,3474.8],["2026-05-13",4697.6,3469.7],["2026-05-14",4676.1,3456.6],["2026-05-15",4623.8,3457.2],["2026-05-16",4537.8,3405.0],["2026-05-17",4537.8,3405.0],["2026-05-18",4538.9,3409.8],["2026-05-19",4544.2,3387.9],["2026-05-20",4468.5,3333.3],["2026-05-21",4536.1,3378.1],["2026-05-22",4529.4,3372.9],["2026-05-23",4505.7,3354.5],["2026-05-24",4505.7,3353.9],["2026-05-25",4561.6,3385.2],["2026-05-26",4540.3,3366.6],["2026-05-27",4501.3,3345.4],["2026-05-28",4381.0,3276.3],["2026-05-29",4503.4,3352.1],["2026-05-30",4542.5,3375.5],["2026-05-31",4542.5,3375.5],["2026-06-01",4511.2,3352.5],["2026-06-02",4509.0,3349.4],["2026-06-03",4471.5,3322.1],["2026-06-04",4482.8,3337.9],["2026-06-05",4441.8,3307.9],["2026-06-06",4330.1,3245.8],["2026-06-07",4330.1,3245.6],["2026-06-08",4310.1,3230.5],["2026-06-09",4335.1,3247.6],["2026-06-10",4181.7,3124.2],["2026-06-11",4076.6,3046.5],["2026-06-12",4195.6,3127.4],["2026-06-13",4215.3,3144.6],["2026-06-14",4215.3,3144.1],["2026-06-15",4329.1,3218.1],["2026-06-16",4325.4,3228.2],["2026-06-17",4323.2,3219.0],["2026-06-18",4313.3,3239.4],["2026-06-19",4126.1,3133.2],["2026-06-20",4156.6,3141.3],["2026-06-21",4156.6,3141.2],["2026-06-22",4181.1,3165.3],["2026-06-23",4145.5,3128.9],["2026-06-24",4060.1,3076.9],["2026-06-25",3995.9,3031.4],["2026-06-26",4006.8,3035.7],["2026-06-27",4080.8,3092.7],["2026-06-28",4080.8,3092.1],["2026-06-29",4056.9,3073.4],["2026-06-30",3971.1,3000.5],["2026-07-01",3976.4,3004.8],["2026-07-02",4064.6,3060.0],["2026-07-03",4178.8,3127.9],["2026-07-04",4174.9,3127.2],["2026-07-05",4174.9,3126.6],["2026-07-06",4163.0,3120.1],["2026-07-07",4127.6,3082.5],["2026-07-08",4127.7,3089.9],["2026-07-09",4062.3,3032.1],["2026-07-10",4121.1,3065.8],["2026-07-11",4111.4,3068.9],["2026-07-12",4111.4,3067.8],["2026-07-13",4059.7,3034.8],["2026-07-14",4011.0,3002.6],["2026-07-15",4037.3,3011.3],["2026-07-16",4030.6,2978.1],["2026-07-17",3990.3,2963.3],["2026-07-18",4010.6,2981.3],["2026-07-19",4010.5,2981.2],["2026-07-20",4024.3,2989.9],["2026-07-21",4037.7,3005.8],["2026-07-22",4139.0,3092.5],["2026-07-23",4132.5,3086.5],["2026-07-24",4032.3,3028.9],["2026-07-25",4055.9,3044.1],["2026-07-26",4055.9,3044.1],["2026-07-27",4088.8,3062.5],["2026-07-28",4043.3,3040.1],["2026-07-29",4028.4,3029.7],["2026-07-30",4075.6,3052.5],["2026-07-31",4075.5,3030.9],["2026-08-01",4042.7,2999.2],["2026-08-02",4042.7,2998.9],["2026-08-03",4063.1,3016.9],["2026-08-04",4058.5,3022.4],["2026-08-05",4129.9,3069.3],["2026-08-06",4278.9,3177.7],["2026-08-07",4254.7,3162.5],["2026-08-08",4342.3,3220.2],["2026-08-09",4342.3,3218.5],["2026-08-10",4324.0,3205.7],["2026-08-11",4424.7,3275.1],["2026-08-12",4402.2,3260.0],["2026-08-13",4409.2,3268.5],["2026-08-14",4316.6,3199.4],["2026-08-15",4375.6,3233.1],["2026-08-16",4375.6,3233.6],["2026-08-17",4400.0,3247.0],["2026-08-18",4402.3,3250.2],["2026-08-19",4350.7,3216.0],["2026-08-20",4499.2,3306.7],["2026-08-21",4529.5,3319.3],["2026-08-22",4608.2,3377.2],["2026-08-23",4608.2,3377.9],["2026-08-24",4609.9,3379.0],["2026-08-25",4671.5,3425.9],["2026-08-26",4642.1,3402.1],["2026-08-27",4598.1,3385.4],["2026-08-28",4600.9,3385.5],["2026-08-29",4458.8,3294.7],["2026-08-30",4458.8,3294.1],["2026-08-31",4420.2,3263.4],["2026-09-01",4429.4,3271.6],["2026-09-02",4300.9,3185.4],["2026-09-03",4430.4,3282.9],["2026-09-04",4468.1,3302.3],["2026-09-05",4428.9,3276.6],["2026-09-06",4428.9,3276.9],["2026-09-07",4402.7,3259.0],["2026-09-08",4438.2,3278.3],["2026-09-09",4373.3,3228.3],["2026-09-10",4410.3,3253.6],["2026-09-11",4303.1,3187.6],["2026-09-12",4348.4,3214.3],["2026-09-13",4348.4,3214.4],["2026-09-14",4329.7,3206.0],["2026-09-15",4304.5,3192.2],["2026-09-16",4325.9,3209.0],["2026-09-17",4294.6,3210.3],["2026-09-18",4352.9,3254.0],["2026-09-19",4380.0,3270.3],["2026-09-20",4380.0,3269.8],["2026-09-21",4364.6,3261.3],["2026-09-22",4337.4,3241.0],["2026-09-23",4346.5,3263.9],["2026-09-24",4284.2,3237.1],["2026-09-25",4269.9,3232.0],["2026-09-26",4286.1,3235.7],["2026-09-27",4286.1,3235.1],["2026-09-28",4198.3,3169.6],["2026-09-29",4129.1,3119.1],["2026-09-30",4181.5,3161.2],["2026-10-01",4182.6,3157.5],["2026-10-02",4185.4,3168.0],["2026-10-03",4137.6,3125.2],["2026-10-04",4137.5,3124.6],["2026-10-05",4131.9,3128.0],["2026-10-06",4122.7,3120.0],["2026-10-07",4132.8,3119.5],["2026-10-08",4125.8,3123.9],["2026-10-09",4198.9,3169.7],["2026-10-10",4195.8,3170.8],["2026-10-11",4195.8,3171.7],["2026-10-12",4186.3,3162.8],["2026-10-13",4188.4,3167.8]]};
+const EMBED_LAST = HIST.daily[HIST.daily.length-1][0];
+const OZ = 31.1035, AED_PEG = 3.6725, DUBAI_PREM = 0.022, UK_RETAIL_PREM = 0.042;
+
+/*ENGINE-START*/
+function isWeekday(d){const w=new Date(d+'T12:00:00Z').getUTCDay();return w!==0&&w!==6}
+function mergeDaily(base, extra){
+  const m=new Map();
+  for(const [d,usd,gbp] of base) m.set(d,{d,usd,gbp});
+  for(const r of extra){ if(r&&typeof r.d==='string'&&r.usd>0&&r.gbp>0) m.set(r.d,{d:r.d,usd:+r.usd,gbp:+r.gbp,src:r.src}); }
+  const all=[...m.values()].sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0);
+  const out=all.filter(r=>isWeekday(r.d));
+  const last=all[all.length-1];
+  if(last && (!out.length || out[out.length-1].d!==last.d)) out.push(last);
+  return out;
+}
+function sma(v,n){const o=new Array(v.length).fill(null);let s=0;for(let i=0;i<v.length;i++){s+=v[i];if(i>=n)s-=v[i-n];if(i>=n-1)o[i]=s/n}return o}
+function rsi(v,n=14){const o=new Array(v.length).fill(null);let g=0,l=0;for(let i=1;i<v.length;i++){const c=v[i]-v[i-1],up=Math.max(c,0),dn=Math.max(-c,0);if(i<=n){g+=up;l+=dn;if(i===n){g/=n;l/=n;o[i]=l===0?100:100-100/(1+g/l)}}else{g=(g*(n-1)+up)/n;l=(l*(n-1)+dn)/n;o[i]=l===0?100:100-100/(1+g/l)}}return o}
+function rolling(v,n,fn){const o=new Array(v.length);for(let i=0;i<v.length;i++){let x=v[i];for(let j=Math.max(0,i-n+1);j<i;j++)x=fn(x,v[j]);o[i]=x}return o}
+function runMax(v,start){const o=new Array(v.length);let m=start||0;for(let i=0;i<v.length;i++){m=Math.max(m,v[i]);o[i]=m}return o}
+function zigzag(v,thr){
+  const piv=[]; if(v.length<3) return piv;
+  let dir=0, ei=0, ev=v[0];
+  for(let i=1;i<v.length;i++){
+    const x=v[i];
+    if(dir===0){ if(x>=ev*(1+thr)){dir=1;piv.push({i:ei,type:'trough'});ei=i;ev=x} else if(x<=ev*(1-thr)){dir=-1;piv.push({i:ei,type:'peak'});ei=i;ev=x} else if(Math.abs(x-v[0])>Math.abs(ev-v[0])){ei=i;ev=x} continue }
+    if(dir===1){ if(x>ev){ev=x;ei=i} else if(x<=ev*(1-thr)){piv.push({i:ei,type:'peak'});dir=-1;ei=i;ev=x} }
+    else { if(x<ev){ev=x;ei=i} else if(x>=ev*(1+thr)){piv.push({i:ei,type:'trough'});dir=1;ei=i;ev=x} }
+  }
+  return piv.filter(p=>p.i>0);
+}
+const LABELS=[{min:4,label:'Strong buy',tone:'sbuy'},{min:2,label:'Buy',tone:'buy'},{min:-1,label:'Hold',tone:'hold'},{min:-3,label:'Sell / trim',tone:'sell'},{min:-99,label:'Strong sell',tone:'ssell'}];
+function labelFor(s){return LABELS.find(l=>s>=l.min)}
+function computeIndicators(rows, priorATH){
+  const c=rows.map(r=>r.gbp);
+  return {c, s50:sma(c,50), s200:sma(c,200), r14:rsi(c,14), hi52:rolling(c,252,Math.max), lo52:rolling(c,252,Math.min), ath:runMax(c,priorATH)};
+}
+function pct(x,dp){return (x*100).toFixed(dp==null?(Math.abs(x)<0.1?1:0):dp)+'%'}
+function scoreAt(ind,i){
+  const p=ind.c[i], s50=ind.s50[i], s200=ind.s200[i], r=ind.r14[i], ath=ind.ath[i];
+  if(s200==null||r==null||!(p>0)) return null;
+  const R=[]; let tot=0;
+  const add=(s,t)=>{R.push({s,t});tot+=s};
+  const dd=Math.max(0,1-p/ath);
+  if(dd>=0.20) add(2,`${pct(dd)} below the record high — a deep discount historically.`);
+  else if(dd>=0.10) add(1,`${pct(dd)} below the record high — a moderate pullback.`);
+  else if(dd<=0.03) add(-1,`Within ${pct(dd)} of the record high — little room for a bargain.`);
+  else add(0,`${pct(dd)} below the record high — no strong discount.`);
+  if(r<30) add(2,`RSI ${r.toFixed(0)}: oversold — selling looks exhausted.`);
+  else if(r<40) add(1,`RSI ${r.toFixed(0)}: weak momentum, leaning oversold.`);
+  else if(r>70) add(-2,`RSI ${r.toFixed(0)}: overbought — rallies this hot often cool off.`);
+  else if(r>60) add(-1,`RSI ${r.toFixed(0)}: strong momentum, getting stretched.`);
+  else add(0,`RSI ${r.toFixed(0)}: neutral momentum.`);
+  const gap=p/s200-1;
+  if(gap>=0) add(1,`Price is ${pct(gap)} above its 200-day average — the long-term uptrend is intact.`);
+  else add(-1,`Price is ${pct(-gap)} below its 200-day average — the long-term trend is down.`);
+  if(s50>=s200) add(1,`50-day average is above the 200-day — trend direction is up.`);
+  else add(-1,`50-day average is below the 200-day — trend direction is down.`);
+  if(gap>0.20) add(-2,`More than 20% above the 200-day average — overstretched.`);
+  else if(gap>0.12) add(-1,`More than 12% above the 200-day average — getting stretched.`);
+  const L=labelFor(tot);
+  return {score:tot, label:L.label, tone:L.tone, reasons:R, dd, rsi:r, gap};
+}
+function holdingCalc(h,spotGBP,bb){
+  const fineOz=h.grams*(h.purity/1000)/OZ;
+  const value=fineOz*spotGBP*bb;
+  const pl=value-h.paid, plPct=h.paid>0?pl/h.paid:0;
+  const be=fineOz>0?h.paid/(fineOz*bb):0;
+  const targets=[0.10,0.20,0.35].map(t=>({t,spot:fineOz>0?h.paid*(1+t)/(fineOz*bb):0}));
+  let tax;
+  if(h.type==='ukcoin') tax={tone:'good',t:'CGT-free (UK legal tender).'};
+  else if(h.type==='coin') tax={tone:'warn',t:'Gains are chargeable for foreign coins. £3,000 annual allowance applies.'};
+  else if(value>6000) tax={tone:'warn',t:'Sale value over £6,000, so any gain is chargeable (18%/24% after the £3,000 allowance).'};
+  else tax={tone:'good',t:'Under £6,000 per item, so a sale is CGT-exempt under the chattels rule.'};
+  return {fineOz,value,pl,plPct,be,targets,tax};
+}
+function holdingAdvice(calc,sig){
+  const p=calc.plPct, t=sig?sig.tone:'hold';
+  const sellish=t==='sell'||t==='ssell', buyish=t==='buy'||t==='sbuy';
+  if(p<0) return {tone:'hold',h:'Hold',t:`You're ${pct(-p)} below break-even after the dealer's spread. Selling now locks in the loss.${buyish?' The market signal is positive, so time is on your side.':''}`};
+  if(p<0.10) return {tone:'hold',h:'Hold',t:`Up ${pct(p)} at buyback — not enough to justify paying the round-trip costs again.`};
+  if(p<0.20) return sellish?{tone:'sell',h:'Consider trimming',t:`Up ${pct(p)} and the market signal has turned negative. Selling a small slice locks some profit.`}:{tone:'hold',h:'Hold',t:`Up ${pct(p)}. Your first sell zone starts at +20%.`};
+  if(p<0.35) return buyish?{tone:'hold',h:'Hold for now',t:`Up ${pct(p)} — target 1 reached, but momentum still favours gold. Consider selling a third if the signal turns to Hold or worse.`}:{tone:'sell',h:'Sell a third',t:`Up ${pct(p)} — target 1 reached and the signal is no longer bullish. A third locks in gains while you keep exposure.`};
+  return buyish?{tone:'hold',h:'Trim into strength',t:`Up ${pct(p)}. Consider selling a second third; keep the rest while the trend lasts.`}:{tone:'sell',h:'Sell another third',t:`Up ${pct(p)} — target 2 reached with a non-bullish signal. Strong case to take profits.`};
+}
+/*ENGINE-END*/
+
+/*DATA-START*/
+const LIMITS={usdMin:500,usdMax:50000,fxMin:0.4,fxMax:1.2,maxDisagree:0.08,maxJump:0.15};
+function validPrice(usd,gbp){
+  if(!(Number.isFinite(usd)&&usd>=LIMITS.usdMin&&usd<=LIMITS.usdMax)) return false;
+  if(gbp!=null){ if(!Number.isFinite(gbp)) return false; const r=gbp/usd; if(!(r>=LIMITS.fxMin&&r<=LIMITS.fxMax)) return false; }
+  return true;
+}
+function parseDaily(j){
+  if(!j||typeof j.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(j.date)||!j.xau) return null;
+  const usd=+j.xau.usd, gbp=+j.xau.gbp;
+  if(!validPrice(usd,gbp)) return null;
+  return {d:j.date,usd:+usd.toFixed(2),gbp:+gbp.toFixed(2),src:'daily'};
+}
+function parseLive(j){
+  if(!j) return null;
+  const usd=+j.price;
+  if(!validPrice(usd,null)) return null;
+  let at=Date.parse(j.updatedAt); if(!Number.isFinite(at)) at=Date.now();
+  return {usd,at};
+}
+function verDot(d){const [y,m,dd]=d.split('-');return `${+y}.${+m}.${+dd}`}
+function dailyUrls(date){
+  return [
+    `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${date?verDot(date):'latest'}/v1/currencies/xau.min.json`,
+    `https://${date||'latest'}.currency-api.pages.dev/v1/currencies/xau.min.json`
+  ];
+}
+const LIVE_URLS=['https://api.gold-api.com/price/XAU'];
+async function fetchJSON(url,ms,fetchImpl){
+  const f=fetchImpl||fetch; const ctl=typeof AbortController!=='undefined'?new AbortController():null;
+  const t=setTimeout(()=>ctl&&ctl.abort(),ms||8000);
+  try{const r=await f(url,{signal:ctl?ctl.signal:undefined,cache:'no-store',headers:{Accept:'application/json'}});if(!r.ok)throw new Error('HTTP '+r.status);return await r.json()}
+  finally{clearTimeout(t)}
+}
+async function firstValid(urls,parse,opts){
+  opts=opts||{}; let lastErr=null;
+  for(const u of urls){
+    for(let attempt=0;attempt<(opts.retries||1);attempt++){
+      try{const v=parse(await fetchJSON(u,opts.timeout,opts.fetch));if(v)return {v,url:u};lastErr=new Error('Bad data from '+hostOf(u));break}
+      catch(e){lastErr=e;if(attempt+1<(opts.retries||1))await sleep(400*(attempt+1))}
+    }
+  }
+  throw lastErr||new Error('No source');
+}
+function hostOf(u){try{return new URL(u).host}catch(e){return u}}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+function todayLondon(now){
+  const s=new Date(now||Date.now()).toLocaleDateString('en-CA',{timeZone:'Europe/London'});
+  return /^\d{4}-\d{2}-\d{2}$/.test(s)?s:new Date(now||Date.now()).toISOString().slice(0,10);
+}
+function addDays(d,n){const t=new Date(d+'T12:00:00Z');t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10)}
+function missingDates(from,to,have,cap){
+  const out=[]; let d=addDays(from,1);
+  while(d<=to&&out.length<(cap||400)){ if(isWeekday(d)&&!have.has(d)) out.push(d); d=addDays(d,1) }
+  return out;
+}
+// Reconcile a live USD quote with the latest daily close: returns the row to show and any warning
+function reconcile(live,daily,fxGBPperUSD){
+  if(!live) return {row:null,warn:null};
+  const gbp=+(live.usd*fxGBPperUSD).toFixed(2);
+  if(daily){const diff=Math.abs(live.usd/daily.usd-1); if(diff>LIMITS.maxDisagree) return {row:null,warn:`Live price ($${live.usd.toFixed(0)}) differs from the last close by ${(diff*100).toFixed(0)}%, so it was ignored.`}}
+  return {row:{usd:+live.usd.toFixed(2),gbp,at:live.at},warn:null};
+}
+/*DATA-END*/
+
+// ---------- storage ----------
+const store={
+  get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}
+};
+
+// ---------- state ----------
+const S={cur:'gbp',range:'1Y',cacheDaily:{},live:null,liveSrc:null,lastLiveOk:0,lastDailyOk:0,liveFails:0,dailyFails:0,holdings:[],bb:0.96,online:navigator.onLine!==false,warn:null};
+const fmtMoney=(v,cur,dp=0)=>(cur==='usd'?'$':'£')+Number(v).toLocaleString('en-GB',{minimumFractionDigits:dp,maximumFractionDigits:dp});
+const fmtDate=d=>new Date(d+'T12:00:00Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+const $=id=>document.getElementById(id);
+function toast(t){const el=$('toast');el.textContent=t;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>el.hidden=true,2600)}
+function showErr(t){if(!t){$('err-banner').hidden=true;return}$('err-text').textContent=t;$('err-banner').hidden=false}
+function ago(ms){const s=Math.max(0,Math.round((Date.now()-ms)/1000));if(s<60)return s+'s ago';const m=Math.round(s/60);if(m<60)return m+' min ago';const h=Math.round(m/60);if(h<24)return h+' h ago';return Math.round(h/24)+' d ago'}
+
+const EXAMPLE=[{id:'example',example:true,name:'Example: 100g Valcambi bar',type:'bar',grams:100,purity:999.9,paid:10391,date:'2026-10-12',where:'Dubai'}];
+let MODEL=null;
+
+function cachedRows(){return Object.entries(S.cacheDaily).map(([d,v])=>({d,usd:v[0],gbp:v[1],src:'daily'}))}
+function latestDaily(){const rows=mergeDaily(HIST.daily,cachedRows());return rows[rows.length-1]}
+function build(){
+  const extra=cachedRows();
+  const lastD=latestDaily();
+  if(S.live&&lastD){
+    const fx=lastD.gbp/lastD.usd;
+    const rec=reconcile(S.live,lastD,fx);
+    S.warn=rec.warn;
+    if(rec.row){const d=todayLondon();extra.push({d,usd:rec.row.usd,gbp:rec.row.gbp,src:'live'})}
+  }
+  const rows=mergeDaily(HIST.daily,extra);
+  const priorATH=Math.max(...HIST.monthly.map(m=>m[2]));
+  const ind=computeIndicators(rows,priorATH);
+  const sig=rows.map((_,i)=>scoreAt(ind,i));
+  MODEL={rows,ind,sig};
+}
+function safe(fn){try{fn()}catch(e){console.error(e)}}
+function render(){
+  build();
+  safe(renderHeader); safe(renderSignal); safe(renderStats); safe(renderChart); safe(renderHoldings); safe(renderSnap); safe(renderStatus);
+}
+function renderHeader(){
+  const {rows}=MODEL; const n=rows.length-1; const last=rows[n], prev=rows[n-1]; const cur=S.cur, v=r=>r[cur];
+  $('price').innerHTML=`${fmtMoney(v(last),cur)}<small>/oz</small>`;
+  const ch=v(last)-v(prev), chp=ch/v(prev);
+  $('chg1d').className='chg num '+(ch>=0?'up':'down');
+  $('chg1d').textContent=`${ch>=0?'▲':'▼'} ${fmtMoney(Math.abs(ch),cur)} (${(chp*100).toFixed(2)}%) vs ${fmtDate(prev.d).replace(/ \d{4}$/,'')}`;
+  const gram=v(last)/OZ;
+  $('subprices').innerHTML=`<span>Per gram <b>${fmtMoney(gram,cur,2)}</b></span><span>${cur==='gbp'?'In $':'In £'} <b>${fmtMoney(cur==='gbp'?last.usd:last.gbp,cur==='gbp'?'usd':'gbp')}</b></span><span>£/$ <b>${(last.usd/last.gbp).toFixed(4)}</b></span>`;
+  document.title=`${fmtMoney(v(last),cur)} · Bullion Watch`;
+}
+function renderStatus(){
+  const dot=$('status').querySelector('.dot'), t=$('status-t');
+  const last=MODEL.rows[MODEL.rows.length-1];
+  const liveFresh=S.live&&last.src==='live'&&(Date.now()-S.lastLiveOk)<5*60e3;
+  if(!S.online){dot.className='dot offline';t.textContent=`Offline · saved price from ${S.live&&last.src==='live'?ago(S.live.at):fmtDate(last.d)}`}
+  else if(liveFresh){dot.className='dot live';t.textContent=`Live · ${ago(S.live.at)}`}
+  else if(S.live&&last.src==='live'){dot.className='dot delayed';t.textContent=`Delayed · ${ago(S.live.at)}`}
+  else{dot.className='dot delayed';t.textContent=`Daily close · ${fmtDate(last.d).replace(/ \d{4}$/,'')}`}
+  showErr(S.warn||(S.liveFails>=3&&S.dailyFails>=2&&S.online?"Couldn't reach the price services. Showing the last saved prices. The app will keep retrying.":null));
+  $('diag').textContent=`v${APP_VERSION} · live source ${S.lastLiveOk?'ok '+ago(S.lastLiveOk):'not reached yet'} · daily source ${S.lastDailyOk?'ok '+ago(S.lastDailyOk):'not reached yet'} · ${MODEL.rows.length} trading days loaded, latest ${last.d}`;
+}
+function renderSignal(){
+  const {rows,sig}=MODEL, n=rows.length-1, last=rows[n], s=sig[n]; if(!s) return;
+  $('sig-pill').className='pill t-'+s.tone; $('sig-pill').textContent=s.label;
+  $('sig-score').textContent=`Score ${s.score>0?'+':''}${s.score} of ±8`;
+  $('sig-needle').style.left=(Math.max(-8,Math.min(8,s.score))+8)/16*100+'%';
+  $('sig-date').textContent=last.src==='live'?'Live, provisional':'Close '+fmtDate(last.d);
+  $('sig-summary').textContent={sbuy:'Several rules line up in favour of buying. Consider adding in stages rather than all at once.',buy:'Conditions lean towards buying. A good time to add gradually if gold fits your plan.',hold:'Mixed picture. No strong reason to buy or sell. Stick to your plan.',sell:'Conditions lean towards taking profit. Consider trimming if you are well in profit.',ssell:'Gold looks overheated. A strong case to take some profit.'}[s.tone];
+  $('sig-reasons').innerHTML=s.reasons.map(r=>`<li><span class="sc ${r.s>0?'p':r.s<0?'n':'z'}">${r.s>0?'+':''}${r.s}</span><span>${r.t}</span></li>`).join('');
+}
+function renderStats(){
+  const {rows,ind}=MODEL, n=rows.length-1, cur=S.cur;
+  const fx=rows[n].usd/rows[n].gbp, conv=x=>cur==='gbp'?x:x*fx;
+  const p=ind.c[n], hi=ind.hi52[n], lo=ind.lo52[n], pos=(p-lo)/(hi-lo||1);
+  const ath=ind.ath[n]; const athI=ind.c.indexOf(Math.max(...ind.c));
+  const r=ind.r14[n];
+  const rTone=r<30?'Oversold':r<40?'Weak':r>70?'Overbought':r>60?'Strong':'Neutral';
+  $('stats').innerHTML=[
+    `<div class="stat"><span class="label">50-day avg</span><span class="v num">${fmtMoney(conv(ind.s50[n]),cur)}</span><span class="s">Price ${p>=ind.s50[n]?'above':'below'} by ${pct(Math.abs(p/ind.s50[n]-1))}</span></div>`,
+    `<div class="stat"><span class="label">200-day avg</span><span class="v num">${fmtMoney(conv(ind.s200[n]),cur)}</span><span class="s">Price ${p>=ind.s200[n]?'above':'below'} by ${pct(Math.abs(p/ind.s200[n]-1))}</span></div>`,
+    `<div class="stat"><span class="label">RSI · 14 day</span><span class="v num">${r.toFixed(0)}</span><span class="s">${rTone} (30 oversold · 70 overbought)</span></div>`,
+    `<div class="stat"><span class="label">From record</span><span class="v num ${p>=ath?'up':'down'}">${p>=ath?'At record':'−'+pct(1-p/ath)}</span><span class="s">Record ${fmtMoney(conv(ath),cur)}${athI>=0&&ind.c[athI]>=ath?' · '+fmtDate(rows[athI].d):''}</span></div>`,
+    `<div class="stat" style="grid-column:1/-1"><span class="label">52-week range</span><div class="row spread num" style="font-size:13px"><span>${fmtMoney(conv(lo),cur)}</span><span>${pct(pos,0)} of the way up</span><span>${fmtMoney(conv(hi),cur)}</span></div><div class="rangebar"><i style="left:${(pos*100).toFixed(1)}%"></i></div></div>`
+  ].join('');
+  const long=longSeries();
+  const at=y=>{const t=Date.now()-y*365.25*864e5;let best=null;for(const pt of long){if(pt.t<=t)best=pt;else break}return best};
+  const nowV=rows[n][cur];
+  $('returns').innerHTML=[[1/12,'1 month'],[1,'1 year'],[5,'5 years'],[20,'20 years']].map(([y,lab])=>{const b=at(y);if(!b)return `<div><b>—</b><span>${lab}</span></div>`;const c=nowV/b[cur]-1;const ann=y>=5?` · ${((Math.pow(nowV/b[cur],1/y)-1)*100).toFixed(1)}%/yr`:'';return `<div><b class="${c>=0?'up':'down'}">${c>=0?'+':''}${(c*100).toFixed(0)}%</b><span>${lab}${ann}</span></div>`}).join('');
+}
+function longSeries(){
+  const out=[];
+  for(const [ym,usd,gbp] of HIST.monthly) out.push({t:Date.parse(ym+'-15T12:00:00Z'),d:ym+'-15',usd,gbp});
+  MODEL.rows.forEach((r,i)=>{ if(i%5===0||i===MODEL.rows.length-1) out.push({t:Date.parse(r.d+'T12:00:00Z'),d:r.d,usd:r.usd,gbp:r.gbp}) });
+  return out;
+}
+
+const RANGES={'1M':{n:22,thr:.03},'6M':{n:130,thr:.06},'1Y':{n:260,thr:.08},'2Y':{n:520,thr:.10},'20Y':{long:true,thr:.20}};
+let chartCtx=null;
+function renderChart(){
+  const {rows,ind,sig}=MODEL, cur=S.cur, R=RANGES[S.range]||RANGES['1Y'];
+  let pts, s50=null, s200=null, sigs=null;
+  if(R.long){ pts=longSeries().map(p=>({d:p.d,v:p[cur]})) }
+  else{
+    const st=Math.max(0,rows.length-R.n);
+    pts=rows.slice(st).map(r=>({d:r.d,v:r[cur]}));
+    const cv=arr=>rows.slice(st).map((r,k)=>{const x=arr[st+k];return x==null?null:(cur==='gbp'?x:x*r.usd/r.gbp)});
+    s50=cv(ind.s50); s200=cv(ind.s200); sigs=sig.slice(st);
+  }
+  if(pts.length<2) return;
+  const box=$('chartbox'); const W=Math.max(300,box.clientWidth||340), H=230, padL=6, padR=52, padT=16, padB=sigs?40:24;
+  const vals=pts.map(p=>p.v).concat((s50||[]).filter(x=>x!=null),(s200||[]).filter(x=>x!=null));
+  let mn=Math.min(...vals), mx=Math.max(...vals); const pad=(mx-mn)*0.08||1; mn-=pad; mx+=pad;
+  const X=i=>padL+(W-padL-padR)*(i/(pts.length-1)), Y=v=>padT+(H-padT-padB)*(1-(v-mn)/(mx-mn));
+  const line=arr=>{let d='',pen=false;arr.forEach((v,i)=>{if(v==null){pen=false;return}d+=(pen?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1);pen=true});return d};
+  const pv=pts.map(p=>p.v);
+  const area=line(pv)+`L${X(pts.length-1).toFixed(1)} ${(H-padB).toFixed(1)}L${X(0).toFixed(1)} ${(H-padB).toFixed(1)}Z`;
+  const step=niceStep((mx-mn)/4); let ticks='';
+  for(let t=Math.ceil(mn/step)*step;t<=mx;t+=step){const y=Y(t);ticks+=`<line x1="${padL}" x2="${W-padR}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/><text x="${W-padR+6}" y="${(y+4).toFixed(1)}" fill="var(--muted)" font-size="11" font-family="var(--f-mono)">${fmtShort(t,cur)}</text>`}
+  let xl=''; const nl=4; for(let k=0;k<=nl;k++){const i=Math.round(k/nl*(pts.length-1));const anchor=k===0?'start':k===nl?'end':'middle';xl+=`<text x="${X(i).toFixed(1)}" y="${(H-padB+14).toFixed(1)}" fill="var(--muted)" font-size="11" text-anchor="${anchor}">${axisDate(pts[i].d,S.range)}</text>`}
+  const piv=zigzag(pv,R.thr); let pm='';
+  const lastPeak=[...piv].reverse().find(p=>p.type==='peak'), lastTr=[...piv].reverse().find(p=>p.type==='trough');
+  for(const p of piv){const x=X(p.i),y=Y(pv[p.i]);const pk=p.type==='peak';pm+=`<path d="M${x.toFixed(1)} ${(y+(pk?-5:5)).toFixed(1)} l-4.5 ${pk?-7:7} h9z" fill="${pk?'var(--bad)':'var(--good)'}"/>`;
+    if(p===lastPeak||p===lastTr){const ty=pk?y-15:y+20;const tx=Math.min(Math.max(x,padL+30),W-padR-30);pm+=`<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="middle" font-size="11" font-weight="600" fill="${pk?'var(--bad)':'var(--good)'}">${pk?'Peak':'Trough'} ${fmtShort(pv[p.i],cur)}</text>`}}
+  let strip='';
+  if(sigs){const sy=H-padB+22, bw=(W-padL-padR)/Math.max(1,pts.length);sigs.forEach((s,i)=>{if(!s)return;const col={sbuy:'var(--good)',buy:'var(--good)',hold:'var(--warn)',sell:'var(--bad)',ssell:'var(--bad)'}[s.tone];const op=(s.tone==='sbuy'||s.tone==='ssell')?1:.5;strip+=`<rect x="${(X(i)-bw/2).toFixed(2)}" y="${sy}" width="${(bw+0.6).toFixed(2)}" height="7" fill="${col}" opacity="${op}"/>`});strip+=`<text x="${W-padR+6}" y="${sy+7}" fill="var(--muted)" font-size="10">signal</text>`}
+  const lx=X(pts.length-1), ly=Y(pv[pv.length-1]);
+  const svg=$('chart'); svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svg.innerHTML=`<defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--gold-line)" stop-opacity=".28"/><stop offset="1" stop-color="var(--gold-line)" stop-opacity="0"/></linearGradient></defs>
+  ${ticks}<path d="${area}" fill="url(#ga)"/>
+  ${s200?`<path d="${line(s200)}" fill="none" stroke="var(--ma200)" stroke-width="1.5" stroke-dasharray="4 3"/>`:''}
+  ${s50?`<path d="${line(s50)}" fill="none" stroke="var(--ma50)" stroke-width="1.5"/>`:''}
+  <path d="${line(pv)}" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linejoin="round"/>
+  ${pm}<circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="4" fill="var(--gold)" stroke="var(--surface)" stroke-width="2"/>
+  ${xl}${strip}<line id="xh" x1="0" x2="0" y1="${padT}" y2="${H-padB}" stroke="var(--fg)" stroke-width="1" opacity="0"/><circle id="xc" r="4" fill="var(--fg)" opacity="0"/>`;
+  const c=pv[pv.length-1]/pv[0]-1;
+  $('range-chg').className='num '+(c>=0?'up':'down'); $('range-chg').textContent=`${c>=0?'+':''}${(c*100).toFixed(1)}% over ${S.range}`;
+  $('range-span').textContent=`${fmtDate(pts[0].d)} – ${fmtDate(pts[pts.length-1].d)}`;
+  $('legend').innerHTML=`<span><i class="sw" style="background:var(--gold)"></i>Price</span>${s50?'<span><i class="sw" style="background:var(--ma50)"></i>50-day avg</span><span><i class="sw" style="background:repeating-linear-gradient(90deg,var(--ma200) 0 4px,transparent 4px 6px)"></i>200-day avg</span>':''}<span style="color:var(--bad)">▼ peak</span><span style="color:var(--good)">▲ trough</span>${R.long?'<span>Monthly averages before 2024</span>':''}`;
+  chartCtx={pts,X,Y,W,padL,padR};
+}
+function niceStep(r){if(!(r>0))return 1;const p=Math.pow(10,Math.floor(Math.log10(r)));const m=r/p;return (m<1.5?1:m<3?2:m<7?5:10)*p}
+function fmtShort(v,cur){const s=cur==='usd'?'$':'£';return v>=10000?s+(v/1000).toFixed(0)+'k':v>=1000?s+(v/1000).toFixed(v%1000===0?0:1)+'k':s+Math.round(v)}
+function axisDate(d,r){const dt=new Date(d+'T12:00:00Z');if(r==='20Y')return String(dt.getUTCFullYear());if(r==='1M')return dt.toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'});return dt.toLocaleDateString('en-GB',{month:'short',year:'2-digit',timeZone:'UTC'})}
+function onPointer(e){
+  if(!chartCtx)return; const box=$('chartbox'); const rect=box.getBoundingClientRect(); if(!rect.width) return;
+  const {pts,X,Y,padL,padR,W}=chartCtx; const sx=(e.clientX-rect.left)/rect.width*W;
+  let i=Math.round((sx-padL)/(W-padL-padR)*(pts.length-1)); i=Math.max(0,Math.min(pts.length-1,i));
+  const x=X(i),y=Y(pts[i].v); const xh=$('xh'),xc=$('xc'); if(!xh)return;
+  xh.setAttribute('x1',x);xh.setAttribute('x2',x);xh.setAttribute('opacity',.35);xc.setAttribute('cx',x);xc.setAttribute('cy',y);xc.setAttribute('opacity',1);
+  const tip=$('tip'); tip.hidden=false; tip.textContent=`${fmtDate(pts[i].d)} · ${fmtMoney(pts[i].v,S.cur)}`;
+  tip.style.left=Math.min(Math.max(x/W*rect.width,70),rect.width-70)+'px';
+}
+function offPointer(){$('tip').hidden=true;const xh=$('xh'),xc=$('xc');if(xh){xh.setAttribute('opacity',0);xc.setAttribute('opacity',0)}}
+
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function renderHoldings(){
+  const list=S.holdings.length?S.holdings:EXAMPLE;
+  const {rows,sig}=MODEL, n=rows.length-1, spot=rows[n].gbp, s=sig[n];
+  $('holdings').innerHTML=list.map(h=>{
+    const c=holdingCalc(h,spot,S.bb), a=holdingAdvice(c,s);
+    const tg=c.targets.map(t=>{const prog=t.spot>c.be?Math.max(0,Math.min(1,(spot-c.be)/(t.spot-c.be))):1;const hit=spot>=t.spot;return `<div class="tg num"><span>+${Math.round(t.t*100)}%</span><div class="bar"><i class="${hit?'hit':''}" style="width:${(prog*100).toFixed(0)}%"></i></div><span>${hit?'✓ ':''}${fmtMoney(t.spot,'gbp')}/oz</span></div>`}).join('');
+    return `<article class="hold${h.example?' example':''}">
+      <div class="row spread" style="align-items:flex-start"><div style="min-width:0"><h3>${esc(h.name)}</h3><div class="note">${esc(h.grams)}g · ${esc(h.purity)} · paid ${fmtMoney(h.paid,'gbp')}${h.where?' · '+esc(h.where):''}${h.date?' · '+fmtDate(h.date):''}</div></div>${h.example?'<span class="badge">Example</span>':''}</div>
+      <div class="kv num"><div><span>Worth at buyback</span><b>${fmtMoney(c.value,'gbp')}</b></div><div><span>Profit / loss</span><b class="${c.pl>=0?'up':'down'}">${c.pl>=0?'+':'−'}${fmtMoney(Math.abs(c.pl),'gbp')}<br><small>${c.pl>=0?'+':''}${(c.plPct*100).toFixed(1)}%</small></b></div><div><span>Break-even spot</span><b>${fmtMoney(c.be,'gbp')}/oz</b></div></div>
+      <div class="targets"><div class="label">Sell targets (spot needed)</div>${tg}</div>
+      <div class="advice"><b class="${a.tone==='sell'?'down':''}">${a.h}.</b> ${a.t}</div>
+      <div class="note" style="color:var(--${c.tax.tone==='good'?'good':'warn'})">${c.tax.t}</div>
+      <div class="row">${h.example?'<button class="btn sm" data-act="mine">Replace with my own</button>':`<button class="btn sm" data-act="edit" data-id="${esc(h.id)}">Edit</button><button class="btn sm danger" data-act="del" data-id="${esc(h.id)}">Delete</button>`}</div>
+    </article>`}).join('');
+}
+function renderSnap(){
+  const r=MODEL.rows[MODEL.rows.length-1]; const aedG=r.usd*AED_PEG/OZ;
+  $('snap').innerHTML=[
+    ['Spot, 24K per gram',`£${(r.gbp/OZ).toFixed(2)} · AED ${aedG.toFixed(2)}`],
+    ['Dubai 24K bar, est.',`AED ${(aedG*(1+DUBAI_PREM)).toFixed(2)}/g`],
+    ['UK 100g bar, est.',`£${(r.gbp*100/OZ*(1+UK_RETAIL_PREM)).toFixed(0)}`],
+    ['UK dealer buyback per oz',`£${(r.gbp*S.bb).toFixed(0)} (${+(S.bb*100).toFixed(1)}%)`],
+    ['Round trip, Dubai buy → UK sell',`≈ −${((1-S.bb/(1+DUBAI_PREM))*100).toFixed(1)}%`],
+    ['Gold rise needed to break even',`+${(((1+DUBAI_PREM)/S.bb-1)*100).toFixed(1)}%`]
+  ].map(([a,b])=>`<div><span>${a}</span><b>${b}</b></div>`).join('');
+}
+
+// ---------- holdings: validation, persistence, backup ----------
+function cleanHolding(h){
+  if(!h||typeof h!=='object') return null;
+  const o={id:String(h.id||('h'+Date.now().toString(36)+Math.random().toString(36).slice(2,6))).slice(0,40),name:String(h.name||'Gold').slice(0,60),type:['bar','ukcoin','coin','jewel'].includes(h.type)?h.type:'bar',grams:+h.grams,purity:+h.purity||999.9,paid:+h.paid,date:/^\d{4}-\d{2}-\d{2}$/.test(h.date||'')?h.date:'',where:String(h.where||'').slice(0,40)};
+  if(!(o.grams>0&&o.grams<1e6)||!(o.paid>=0&&o.paid<1e9)||!(o.purity>0&&o.purity<=1000)) return null;
+  return o;
+}
+function saveHoldings(){ if(!store.set('bw.holdings',S.holdings)) toast("Couldn't save on this phone. Download a backup to keep your data.") }
+function backupObj(){return {app:'bullion-watch',version:1,exported:new Date().toISOString(),buybackPct:+(S.bb*100).toFixed(2),holdings:S.holdings}}
+function restore(obj){
+  const arr=Array.isArray(obj)?obj:(obj&&Array.isArray(obj.holdings)?obj.holdings:null);
+  if(!arr) throw new Error('That backup has no holdings in it.');
+  const clean=arr.map(cleanHolding).filter(Boolean);
+  if(arr.length&&!clean.length) throw new Error('None of the holdings in that backup were valid.');
+  S.holdings=clean; saveHoldings();
+  if(obj&&obj.buybackPct>=80&&obj.buybackPct<=100){S.bb=obj.buybackPct/100;$('bb').value=obj.buybackPct;store.set('bw.bb',obj.buybackPct)}
+  renderHoldings(); renderSnap(); toast(`Restored ${clean.length} holding${clean.length===1?'':'s'}`);
+}
+
+// ---------- network ----------
+let liveTimer=null, dailyTimer=null, backfilling=false;
+async function refreshLive(){
+  clearTimeout(liveTimer);
+  if(document.hidden){return}
+  try{
+    const {v,url}=await firstValid(LIVE_URLS,parseLive,{timeout:7000,retries:2});
+    const prev=S.live; S.live=v; S.liveSrc=hostOf(url); S.lastLiveOk=Date.now(); S.liveFails=0;
+    store.set('bw.live',v);
+    if(!prev||prev.usd!==v.usd||prev.at!==v.at) render(); else safe(renderStatus);
+  }catch(e){ S.liveFails++; safe(renderStatus) }
+  const delay=S.liveFails?Math.min(15*60e3,60e3*Math.pow(2,S.liveFails-1)):60e3;
+  liveTimer=setTimeout(refreshLive,delay);
+}
+async function refreshDaily(){
+  clearTimeout(dailyTimer);
+  try{
+    const {v}=await firstValid(dailyUrls(null),parseDaily,{timeout:9000,retries:2});
+    S.lastDailyOk=Date.now(); S.dailyFails=0;
+    const prevLast=latestDaily();
+    if(prevLast&&Math.abs(v.usd/prevLast.usd-1)>LIMITS.maxJump&&v.d>prevLast.d){console.warn('Daily jump rejected',v)}
+    else if(v.d>EMBED_LAST||S.cacheDaily[v.d]){S.cacheDaily[v.d]=[v.usd,v.gbp];persistCache()}
+    render();
+    backfill(v.d);
+  }catch(e){ S.dailyFails++; safe(renderStatus) }
+  dailyTimer=setTimeout(refreshDaily,S.dailyFails?Math.min(30*60e3,2*60e3*Math.pow(2,S.dailyFails-1)):30*60e3);
+}
+function persistCache(){
+  // keep the cache bounded (about 2 years of trading days beyond the embedded history)
+  const keys=Object.keys(S.cacheDaily).sort(); while(keys.length>600){delete S.cacheDaily[keys.shift()]}
+  store.set('bw.daily',S.cacheDaily);
+}
+async function backfill(upTo){
+  if(backfilling) return; backfilling=true;
+  try{
+    const have=new Set([...HIST.daily.map(r=>r[0]),...Object.keys(S.cacheDaily)]);
+    const todo=missingDates(EMBED_LAST,addDays(upTo,-1),have,400);
+    let got=0; const failed=store.get('bw.failed',{});
+    const queue=todo.filter(d=>!(failed[d]>=3));
+    const worker=async()=>{while(queue.length){const d=queue.shift();try{const {v}=await firstValid(dailyUrls(d),parseDaily,{timeout:9000});if(v.d===d){S.cacheDaily[d]=[v.usd,v.gbp];got++}else{failed[d]=(failed[d]||0)+1}}catch(e){failed[d]=(failed[d]||0)+1}}};
+    await Promise.all([worker(),worker(),worker(),worker()]);
+    store.set('bw.failed',failed);
+    if(got){persistCache();render()}
+  }finally{backfilling=false}
+}
+
+// ---------- events ----------
+document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{S.cur=b.dataset.cur;store.set('bw.cur',S.cur);document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));render()}));
+$('ranges').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.range=b.dataset.r;store.set('bw.range',S.range);$('ranges').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));safe(renderChart)});
+const cb=$('chartbox'); cb.addEventListener('pointermove',onPointer); cb.addEventListener('pointerdown',onPointer); cb.addEventListener('pointerleave',offPointer); cb.addEventListener('pointerup',e=>{if(e.pointerType!=='mouse')setTimeout(offPointer,1500)});
+let rz; window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>safe(renderChart),150)});
+$('bb').addEventListener('change',e=>{let v=+e.target.value;if(!(v>=80&&v<=100))v=96;e.target.value=v;S.bb=v/100;store.set('bw.bb',v);renderHoldings();renderSnap()});
+$('status').addEventListener('click',()=>{toast('Refreshing prices…');refreshLive();refreshDaily()});
+$('err-x').addEventListener('click',()=>{$('err-banner').hidden=true});
+window.addEventListener('online',()=>{S.online=true;refreshLive();refreshDaily()});
+window.addEventListener('offline',()=>{S.online=false;safe(renderStatus)});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshLive();if(Date.now()-S.lastDailyOk>30*60e3)refreshDaily()}});
+setInterval(()=>{if(!document.hidden)safe(renderStatus)},15e3);
+
+function openForm(h){
+  $('addbox').open=true; $('add-summary').textContent=h?'Edit holding':'Add a holding'; $('h-err').hidden=true;
+  $('h-id').value=h?h.id:''; $('h-name').value=h?h.name:''; $('h-type').value=h?h.type:'bar'; $('h-grams').value=h?h.grams:''; $('h-purity').value=h?String(h.purity):'999.9'; $('h-paid').value=h?h.paid:''; $('h-date').value=h?h.date||'':''; $('h-where').value=h?h.where||'':'';
+  $('addbox').scrollIntoView({behavior:'smooth',block:'start'}); setTimeout(()=>$('h-name').focus(),200);
+}
+$('holdings').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;const act=b.dataset.act,id=b.dataset.id;
+  if(act==='mine')openForm(null);
+  if(act==='edit')openForm(S.holdings.find(h=>h.id===id));
+  if(act==='del'){ if(b.dataset.armed){S.holdings=S.holdings.filter(h=>h.id!==id);saveHoldings();renderHoldings();toast('Holding deleted')} else {b.dataset.armed='1';b.textContent='Tap again to delete';setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent='Delete'}},3000)} }
+});
+$('h-cancel').addEventListener('click',()=>{$('addbox').open=false;$('add-summary').textContent='Add a holding'});
+$('hform').addEventListener('submit',e=>{
+  e.preventDefault();
+  const h=cleanHolding({id:$('h-id').value||undefined,name:$('h-name').value.trim()||'Gold',type:$('h-type').value,grams:$('h-grams').value,purity:$('h-purity').value,paid:$('h-paid').value,date:$('h-date').value,where:$('h-where').value.trim()});
+  if(!h||$('h-paid').value===''){$('h-err').textContent='Enter the weight in grams and the total you paid in pounds.';$('h-err').hidden=false;return}
+  const i=S.holdings.findIndex(x=>x.id===h.id); if(i>=0)S.holdings[i]=h; else S.holdings.push(h);
+  saveHoldings(); $('addbox').open=false; $('add-summary').textContent='Add a holding'; renderHoldings(); toast('Holding saved');
+});
+$('exp-file').addEventListener('click',()=>{
+  try{const blob=new Blob([JSON.stringify(backupObj(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`bullion-watch-backup-${todayLondon()}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast('Backup downloaded')}catch(err){toast('Download failed. Use Copy backup instead.')}
+});
+$('exp-copy').addEventListener('click',async()=>{
+  const txt=JSON.stringify(backupObj());
+  try{await navigator.clipboard.writeText(txt);toast('Backup copied. Paste it into a note or email to yourself.')}
+  catch(err){$('imp-text').value=txt;$('imp-text').select();toast('Select and copy the text in the box')}
+});
+$('imp-file').addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0]; if(!f)return;
+  const rd=new FileReader(); rd.onload=()=>{try{restore(JSON.parse(rd.result))}catch(err){toast(err.message||"That file isn't a Bullion Watch backup.")}e.target.value=''}; rd.readAsText(f);
+});
+$('imp-go').addEventListener('click',()=>{try{restore(JSON.parse($('imp-text').value));$('imp-text').value=''}catch(err){toast(err.message&&!/JSON/.test(err.message)?err.message:"That text isn't a valid backup.")}});
+
+// ---------- install ----------
+let deferredPrompt=null;
+const standalone=window.matchMedia&&matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;if(!store.get('bw.noinstall',false)){$('install-text').textContent='Install Bullion Watch on your home screen so it opens like an app, even offline.';$('install-btn').hidden=false;$('install-banner').hidden=false}});
+$('install-btn').addEventListener('click',async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();try{await deferredPrompt.userChoice}catch(e){}deferredPrompt=null;$('install-banner').hidden=true});
+$('install-x').addEventListener('click',()=>{$('install-banner').hidden=true;store.set('bw.noinstall',true)});
+function iosHint(){const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);if(ios&&!standalone&&!store.get('bw.noinstall',false)){$('install-text').textContent='To install: tap the Share button in Safari, then "Add to Home Screen".';$('install-banner').hidden=false}}
+
+// ---------- boot ----------
+window.addEventListener('error',e=>console.error('Bullion Watch error',e.error||e.message));
+window.addEventListener('unhandledrejection',e=>console.error('Bullion Watch rejection',e.reason));
+(function boot(){
+  S.cur=store.get('bw.cur','gbp')==='usd'?'usd':'gbp';
+  const r=store.get('bw.range','1Y'); S.range=RANGES[r]?r:'1Y';
+  let bb=+store.get('bw.bb',96); if(!(bb>=80&&bb<=100))bb=96; S.bb=bb/100; $('bb').value=bb;
+  const local=store.get('bw.holdings',[]); S.holdings=Array.isArray(local)?local.map(cleanHolding).filter(Boolean):[];
+  const cache=store.get('bw.daily',{}); if(cache&&typeof cache==='object')for(const [d,v] of Object.entries(cache)){if(/^\d{4}-\d{2}-\d{2}$/.test(d)&&Array.isArray(v)&&validPrice(+v[0],+v[1]))S.cacheDaily[d]=[+v[0],+v[1]]}
+  const live=store.get('bw.live',null); if(live&&validPrice(+live.usd,null)&&Date.now()-live.at<3*864e5)S.live={usd:+live.usd,at:+live.at};
+  document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.cur===S.cur)));
+  $('ranges').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.r===S.range)));
+  render(); iosHint();
+  refreshLive(); refreshDaily();
+  if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      reg.addEventListener('updatefound',()=>{const w=reg.installing;if(!w)return;w.addEventListener('statechange',()=>{if(w.state==='installed'&&navigator.serviceWorker.controller)toast('Update ready. Close and reopen the app to use it.')})});
+    }).catch(()=>{});
+  }
+})();
+</script>
+</body>
+</html>
